@@ -241,7 +241,7 @@
 <script src="js/datatables.net/js/jquery.dataTables.min.js"></script>
 <script src="js/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
 <script type="text/javascript" src="js/geromicsdata.js"></script>
-<script type="text/javascript" src="geromicscoldata.js"></script>
+<script type="text/javascript" src="js/geromicscoldata.js"></script>
 <script type="text/javascript" src="js/subgeromicsdata.js"></script>
 <script type="text/javascript" src="js/subgeromicscoldata.js"></script>
 <script type="text/javascript" src="js/currentInfo.js"></script>
@@ -650,9 +650,9 @@
             });
             var path = "";
             if (treeType == "tree") {
-                path = blockManager.basicUrl + "static/csv/" + clusterName + "tree.csv";
+                path = blockManager.basicUrl + "js/csv/" + clusterName + "tree.csv";
             } else if (treeType == "subTree") {
-                path = blockManager.basicUrl + "static/csv/subtree.csv";
+                path = blockManager.basicUrl + "js/csv/subtree.csv";
             }
             //console.log(path);
 
@@ -744,10 +744,10 @@
             console.log(treeWidth);
             if (treeType == "main") {
                 var g = d3.select("#" + treeId);
-                var path = blockManager.basicUrl + "static/csv/" + clusterName + "coltree.csv";
+                var path = blockManager.basicUrl + "js/csv/" + clusterName + "coltree.csv";
             } else if (treeType == "sub") {
                 var g = d3.select("#" + treeId);
-                var path = blockManager.basicUrl + "static/csv/subcoltree.csv"
+                var path = blockManager.basicUrl + "js/csv/subcoltree.csv"
             }
 
             var tree = d3.cluster().size([treeWidth, 50]);

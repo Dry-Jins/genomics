@@ -1,0 +1,16 @@
+{
+  "name": "gene_chrome",
+  "version": "1.0.0",
+  "description": "Simple gene viwer based on D3JS",
+  "main": "index.html",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "d3js"
+  ],
+  "author": "SkyJin",
+  "license": "ISC"
+}

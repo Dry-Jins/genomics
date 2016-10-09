@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Gene View</title>
+    <meta name="author" content="SkyJin">
+    <link href="js/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="js/bootstrap-fileinput/css/fileinput.min.css" rel="stylesheet">
+    <link href="js/bootstrap-toggle/css/bootstrap-toggle.min.css" rel="stylesheet">
+    <link href="js/bootstrap-select/dist/css/bootstrap-select.min.css" rel="stylesheet">
+    <style>
+
+        rect.bordered {
+            stroke: #E6E6E6;
+            stroke-width: 2px;
+        }
+
+        text.mono {
+            font-size: 7pt;
+            font-family: Consolas, courier;
+            fill: #aaa;
+        }
+
+        text.axis-workweek {
+            fill: #000;
+        }
+
+        text.axis-worktime {
+            fill: #000;
+        }
+
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 1.5px;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 3px;
+        }
+
+        .node--internal text {
+            text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+        }
+
+        .link {
+            fill: none;
+            stroke: #555;
+            stroke-opacity: 0.4;
+            stroke-width: 1.5px;
+        }
+
+        .toggle.ios, .toggle-on.ios, .toggle-off.ios {
+            border-radius: 20px;
+        }
+
+        .toggle.ios .toggle-handle {
+            border-radius: 20px;
+        }
+
+        .block.display {
+            resize: both;
+            overflow: auto;
+        }
+
+        .block.edit {
+            resize: none;
+            overflow: auto;
+        }
+    </style>
+
+</head>
+<body>
+<div class="container-fluid">
+    <nav class="navbar navbar-default navbar-inverse" role="navigation">
+        <div class="navbar-header">
+            <button class="navbar-toggle" type="button" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span
+                    class="icon-bar"></span><span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand btn-toggle-menu" href="javascript:addBlock();" style="color: #FFF"><i
+                    class="glyphicon glyphicon-plus-sign"></i></a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+                <li class="active">
+                    <a href="#">Gene Block</a>
+                </li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="#">Info </a>
+                </li>
+                <!--
+                <li class="dropdown">
+                    <a class="dropdown-toggle" href="#" data-toggle="dropdown">Dropdown<strong class="caret"></strong></a>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a href="#">Action</a>
+                        </li>
+                        <li>
+                            <a href="#">Another action</a>
+                        </li>
+                        <li>
+                            <a href="#">Something else here</a>
+                        </li>
+                        <li class="divider">
+                        </li>
+                        <li>
+                            <a href="#">Separated link</a>
+                        </li>
+                    </ul>
+                </li>
+                -->
+            </ul>
+        </div>
+
+    </nav>
+    <div id="example"></div>
+    <div class="row">
+        <div class="col-md-10 main" id="content">
+            <div class="thumbnail col-md-4 block display text-right">
+                <a href="#"><i class="glyphicon glyphicon-remove "></i></a>
+                <div id="chart"></div>
+                <div class="caption">
+                    <h3>
+                    </h3>
+                    <div class="edit-menu hidden">
+                        <p>
+                            <input type="text" class="form-control" placeholder="BLOCK NAME...">
+                        </p>
+                        <p>
+                            <label>- Cluster</label>
+                            <select class="selectpicker" data-width="100%" data-style="btn-primary">
+                                <option>Method 1</option>
+                                <option>Method 2</option>
+                                <option>Method 3</option>
+                            </select>
+                        </p>
+                        <p>
+                            <label>- Data</label><input id="input-folder-1" type="file" class="file">
+                        </p>
+                        <p>
+                            <a class="btn btn-block btn-success">Done</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="thumbnail col-md-3 block edit text-right">
+                <a href="#"><i class="glyphicon glyphicon-remove "></i></a>
+                <div class="caption">
+                    <div class="block-display">
+                        <h3></h3>
+                    </div>
+                    <div class="block-edit">
+                        <p>
+                            <input type="text" class="form-control" placeholder="BLOCK NAME...">
+                        </p>
+                        <p>
+                            <label>- Cluster</label>
+                            <select class="selectpicker" data-width="100%" data-style="btn-primary">
+                                <option>Method 1</option>
+                                <option>Method 2</option>
+                                <option>Method 3</option>
+                            </select>
+                        </p>
+                        <p>
+                            <label>- Data</label><input id="input-folder-1" type="file"
+                                                        class="file">
+                        </p>
+                        <p>
+                            <a class="btn btn-block btn-success">Done</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-2 frequency-panel">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">
+                        Frequency
+                        <!--
+                        <input type="checkbox" checked data-toggle="toggle" data-on="Simple" data-off="Stack"
+                               data-onstyle="primary" data-offstyle="danger" data-size="small" data-style="ios">
+                               -->
+                    </h3>
+                </div>
+                <div class="panel-body">
+                    <canvas class="bar"></canvas>
+                </div>
+                <div class="panel-footer">
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-10 network-panel">
+            <div class="panel panel-default ">
+                <div class="panel-heading">
+                    <h3 class="panel-title">
+                        Network
+                    </h3>
+                </div>
+                <div class="panel-body network-block">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/jquery/dist/jquery.min.js"></script>
+<script src="js/lodash/dist/lodash.min.js"></script>
+<script src="js/bootstrap/dist/js/bootstrap.min.js"></script>
+<script src="js/bootstrap-fileinput/js/fileinput.min.js"></script>
+<script src="js/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+<script src="js/bootstrap-toggle/js/bootstrap-toggle.min.js"></script>
+<script src="js/d3/d3.min.js"></script>
+<script src="js/babel/browser.min.js"></script>
+
+<script>
+    // TODO 1.1 히트맵 + 클러스터 그래프
+    // TODO 1.1.1  동적 D3 블록 그래프 크기 조정
+    // TODO 1.2. frequency Bar 그래프
+    // TODO 1.3. 네트워크 그래프
+
+    // Visualization 담당 스크립트
+    var visualizer = {
+        networkGraph: function () {
+            var width = $("div.network-block").width();
+            var height = 600;
+            var $canvas = $('<canvas>').attr('width', width).attr('height', height).addClass('network');
+            $('div.network-block').empty()
+                    .append($canvas);
+            // 네트워크 그래프
+            var canvas = document.querySelector('canvas.network'),
+                    context = canvas.getContext("2d"),
+                    width = canvas.width,
+                    height = canvas.height;
+
+            var simulation = d3.forceSimulation()
+                    .force("link", d3.forceLink().id(function (d) {
+                        return d.id;
+                    }))
+                    .force("charge", d3.forceManyBody())
+                    .force("center", d3.forceCenter(width / 2, height / 2));
+
+            function resize() {
+                var width = $("div.network-block").width();
+                $canvas.width(width);
+                simulation.force("center", d3.forceCenter(width / 2, height / 2));
+                simulation.restart();
+            }
+
+            function load() {
+                d3.json("sample.json", function (error, graph) {
+                    if (error) throw error;
+
+                    simulation
+                            .nodes(graph.nodes)
+                            .on("tick", ticked);
+
+                    simulation.force("link")
+                            .links(graph.links);
+
+                    d3.select(canvas)
+                            .call(d3.drag()
+                                    .container(canvas)
+                                    .subject(dragsubject)
+                                    .on("start", dragstarted)
+                                    .on("drag", dragged)
+                                    .on("end", dragended));
+
+                    function ticked() {
+                        context.clearRect(0, 0, width, height);
+
+                        context.beginPath();
+                        graph.links.forEach(drawLink);
+                        context.strokeStyle = "#aaa";
+                        context.stroke();
+
+                        context.beginPath();
+                        graph.nodes.forEach(drawNode);
+                        context.fill();
+                        context.strokeStyle = "#fff";
+                        context.stroke();
+                    }
+
+                    function dragsubject() {
+                        return simulation.find(d3.event.x, d3.event.y);
+                    }
+                });
+            }
+            function dragstarted() {
+                if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+                d3.event.subject.fx = d3.event.subject.x;
+                d3.event.subject.fy = d3.event.subject.y;
+            }
+
+            function dragged() {
+                d3.event.subject.fx = d3.event.x;
+                d3.event.subject.fy = d3.event.y;
+            }
+
+            function dragended() {
+                if (!d3.event.active) simulation.alphaTarget(0);
+                d3.event.subject.fx = null;
+                d3.event.subject.fy = null;
+            }
+
+            function drawLink(d) {
+                context.moveTo(d.source.x, d.source.y);
+                context.lineTo(d.target.x, d.target.y);
+            }
+
+            function drawNode(d) {
+                context.moveTo(d.x + 3, d.y);
+                context.arc(d.x, d.y, 3, 0, 2 * Math.PI);
+                context.fillText(d.id, d.x + 10, d.y + 3);
+            }
+            load();
+            $(window).resize(resize);
+        },
+        barGraph: function () {
+            var canvas = document.querySelector('canvas.bar'),
+                    context = canvas.getContext("2d");
+            //var width = $("div.frequency-panel").width();
+            //var height = 100;
+
+            var margin = {top: 20, right: 20, bottom: 20, left: 20},
+                    width = canvas.width - margin.left - margin.right,
+                    height = canvas.height - margin.top - margin.bottom;
+
+            var x = d3.scaleLinear()
+                    .rangeRound([0, width])
+                    .padding(0.1);
+
+            var y = d3.scaleBand()
+                    .rangeRound([height, 0]);
+
+            context.translate(margin.left, margin.top);
+            d3.tsv("bar_sample.tsv", function (d) {
+                d.frequency = +d.frequency;
+                return d;
+            }, function (error, data) {
+                if (error) throw error;
+
+                y.domain(data.map(function (d) {
+                    return d.letter;
+                }));
+                x.domain([0, d3.max(data, function (d) {
+                    return d.frequency;
+                })]);
+
+                var yTickCount = 10,
+                        yTicks = y.ticks(yTickCount),
+                        yTickFormat = y.tickFormat(yTickCount, "%");
+
+                context.beginPath();
+                x.domain().forEach(function (d) {
+                    context.moveTo(x(d) + x.bandwidth() / 2, height);
+                    context.lineTo(x(d) + x.bandwidth() / 2, height + 6);
+                });
+                context.strokeStyle = "black";
+                context.stroke();
+
+                context.textAlign = "center";
+                context.textBaseline = "top";
+                x.domain().forEach(function (d) {
+                    context.fillText(d, x(d) + x.bandwidth() / 2, height + 6);
+                });
+
+                context.beginPath();
+                yTicks.forEach(function (d) {
+                    context.moveTo(0, y(d) + 0.5);
+                    context.lineTo(-6, y(d) + 0.5);
+                });
+                context.strokeStyle = "black";
+                context.stroke();
+
+                context.textAlign = "right";
+                context.textBaseline = "middle";
+                yTicks.forEach(function (d) {
+                    context.fillText(yTickFormat(d), -9, y(d));
+                });
+
+                context.beginPath();
+                context.moveTo(-6.5, 0 + 0.5);
+                context.lineTo(0.5, 0 + 0.5);
+                context.lineTo(0.5, height + 0.5);
+                context.lineTo(-6.5, height + 0.5);
+                context.strokeStyle = "black";
+                context.stroke();
+
+                context.save();
+                context.rotate(-Math.PI / 2);
+                context.textAlign = "right";
+                context.textBaseline = "top";
+                context.font = "bold 10px sans-serif";
+                context.fillText("Frequency", -10, 10);
+                context.restore();
+
+                context.fillStyle = "steelblue";
+                data.forEach(function (d) {
+                    context.fillRect(x(d.letter), y(d.frequency), x.bandwidth(), height - y(d.frequency));
+                });
+            });
+        }
+    };
+</script>
+
+<script>
+    // TODO 2.1 크러스터 정보 호출
+    // TODO 2.2 Data 파일 업로드
+    // TOdo 2.3 D3용 Block 데이터 호출
+
+    // 좌측 기본 분석 메뉴 액션 핸들러
+    var basicMenuHandler = {
+        init: function () {
+            // 메뉴 상태 초기화
+        },
+        toggleMenu: function () {
+
+        },
+        loadBlock: function () {
+            // 서버에서 D3 용 데이터를 가져옴
+        },
+        uploadData: function () {
+            // Ajax 파일 업로드 처리
+        },
+        showCluster: function () {
+            // 가능한 클러스터 리스트를 서버에서 호출후 Selectbox로 생성
+        },
+        checkGo: function () {
+            // 블록 추가 가능 여부 확인
+        },
+        pushGo: function () {
+            // Block, Data, Cluster 정보를 바탕으로 중앙 메인 화면에 신규 D3 블록 생성
+        }
+    };
+</script>
+
+<script>
+    // 우측 분석 메뉴 액션 핸들러
+    var advanceMenuHandler = {};
+</script>
+
+
+<script>
+    // TODO 테스트용 임시 코드
+    $(document).ready(function () {
+        visualizer.networkGraph();
+        visualizer.barGraph();
+        heatmapChart("data.tsv");
+        heatmapChart("data.tsv");
+        rightDendro(svg);
+        //bottomDendro(svg)
+    });
+    $(window).scroll(function () {
+        $('.frequency-panel').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
+    });
+
+    var margin = {top: 50, right: 0, bottom: 100, left: 30},
+            width = 500 - margin.left - margin.right,
+            height = 330 - margin.top - margin.bottom,
+            gridSize = Math.floor(width / 24),
+            buckets = 9,
+            colors = ["#ffff00", "#e5e500", "#cccc00", "#b2b200", "#999900", "#7f7f00", "#666600", "#4c4c00", "#333300"], // 히트맵 색 범위
+            rows = ["A", "B", "C", "D", "E", "F", "G"],
+            cols = ["1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12a"];
+    var svg = d3.select("#chart").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom);
+    var heatmapSvg = svg
+            .append("g")
+            .attr("transform", "translate(" + (margin.left) + "," + (margin.top - 40) + ")");
+    // 우측 클러스터 생성함수
+    function rightDendro(svg) {
+        var width = 100;
+        var height = 162;
+        var cluster = d3.cluster()
+                .size([height, width])
+                .nodeSize([height / 7 - 0.9, width / 7 - 0.9])
+                .separation(function (a, b) {
+                    return a.parent == b.parent ? 1 : 1.1;
+                });
+
+        var stratify = d3.stratify()
+                .parentId(function(d) { return d.id.substring(0, d.id.lastIndexOf(".")); });
+
+        var g = svg.append("g")
+                .attr("transform", "translate(430,105)" + "rotate(180)" + "scale(1.3)");
+        d3.json("dendro.json", function (error, treeData) {
+            var root = stratify(treeData)
+                    .sort(function(a, b) { return (a.height - b.height) || a.id.localeCompare(b.id); });
+
+            cluster(root);
+            //var links = cluster.links(nodes);
+            var link = g.selectAll(".link")
+                    .data(root.descendants().slice(1))
+                    .enter().append("path")
+                    .attr("class", "link")
+                    .attr("d", function(d) {
+                        return "M" + d.y + "," + d.x
+                                + "C" + (d.parent.y + 100) + "," + d.x
+                                + " " + (d.parent.y + 100) + "," + d.parent.x
+                                + " " + d.parent.y + "," + d.parent.x;
+                    });
+
+                        // Link 에 마우스오버 및 아웃 이벤트 등록
+            link
+                    .on('mouseover', function (d) {
+                        link.style('stroke-width', function (v) {
+                            if (d.source === v.source || d.target === v.target)
+                                return 4;
+                            else
+                                return 2;
+                        });
+                    })
+                    .on('mouseout', function () {
+                        link.style('stroke-width', function (v) {
+                            return 1;
+                        });
+                    });
+            var node = g.selectAll(".node")
+                    .data(root.descendants())
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .attr("transform", function (d) {
+                        return "translate(" + d.y + "," + d.x + ")";
+                    });
+            node.append("circle")
+                    .attr("r", 1.5);
+            // 노드에 마우스 오버 하이라이트 이벤트 등록
+            node.on('mouseover', function (d) {
+                link.style('stroke-width', function (l) {
+                    if (d === l.source || d === l.target)
+                        return 4;
+                    else
+                        return 2;
+                });
+            });
+            // 노드에 마우스 아웃 이벤트 등록
+            node.on('mouseout', function () {
+                link.style('stroke-width', 2);
+            });
+        });
+    }
+    // 하단 클러스터 생성 함수
+    function bottomDendro(svg) {
+        var width = 45;
+        var height = 280;
+        var cluster = d3.cluster()
+                .size([height, width])
+                .nodeSize([height / 12 - 0.9, width / 2 - 0.9])
+                .separation(function (a, b) {
+                    return a.parent == b.parent ? 1 : 1.15;
+                });
+        var diagonal = d3.svg.diagonal()
+                .projection(function (d) {
+                    return [d.y, d.x];
+                });
+        var g = svg.append("g")
+                .attr("transform", "translate(250,280)" + "rotate(-90)" + "scale(1.3)");
+        d3.json("dendro2.json", function (error, root) {
+            var nodes = cluster.nodes(root);
+            var links = cluster.links(nodes);
+            // Path 및 link 모양 설정
+            var link = g.selectAll(".link")
+                    .data(links)
+                    .enter().append("path")
+                    .attr("class", "link")
+                    .attr("d", diagonal);
+            // Link 에 마우스오버 및 아웃 이벤트 등록
+            link
+                    .on('mouseover', function (d) {
+                        link.style('stroke-width', function (v) {
+                            if (d.source === v.source || d.target === v.target)
+                                return 4;
+                            else
+                                return 2;
+                        });
+                    })
+                    .on('mouseout', function () {
+                        link.style('stroke-width', 2);
+                    });
+            var node = g.selectAll(".node")
+                    .data(nodes)
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .attr("transform", function (d) {
+                        return "translate(" + d.y + "," + d.x + ")";
+                    });
+            node.append("circle")
+                    .attr("r", 1.5);
+            // 노드에 마우스 오버 하이라이트 이벤트 등록
+            node.on('mouseover', function (d) {
+                link.style('stroke-width', function (l) {
+                    if (d === l.source || d === l.target)
+                        return 4;
+                    else
+                        return 2;
+                });
+            });
+            // 노드에 마우스 아웃 이벤트 등록
+            node.on('mouseout', function () {
+                link.style('stroke-width', 2);
+            });
+        });
+    }
+    // 히트맵 생성함수
+    var heatmapChart = function (tsvFile) {
+        d3.tsv(tsvFile,
+                function (d) {
+                    return {
+                        day: +d.day,
+                        hour: +d.hour,
+                        value: +d.value
+                    };
+                },
+                function (error, data) {
+                    var colorScale = d3.scaleQuantile()
+                            .domain([0, buckets - 1, d3.max(data, function (d) {
+                                return d.value;
+                            })])
+                            .range(colors);
+                    var cards = heatmapSvg.selectAll(".hour")
+                            .data(data, function (d) {
+                                return d.day + ':' + d.hour;
+                            });
+                    cards.append("title");
+                    cards.enter().append("rect")
+                            .attr("x", function (d) {
+                                return (d.hour - 1) * gridSize;
+                            })
+                            .attr("y", function (d) {
+                                return (d.day - 1) * gridSize;
+                            })
+                            .attr("rx", 4)
+                            .attr("ry", 4)
+                            .attr("class", "hour bordered")
+                            .attr("width", gridSize)
+                            .attr("height", gridSize)
+                            .style("fill", colors[0]);
+                    cards.transition().duration(1000)
+                            .style("fill", function (d) {
+                                return colorScale(d.value);
+                            });
+                    cards.on("mouseover", function (d) {
+                        cards.style("stroke-width", function (v) {
+                            if (d == v)
+                                return 4;
+                            else
+                                return 1;
+                        }).style("stroke-color", function (v) {
+                            if (d == v)
+                                return "#333";
+                            else
+                                return "#000";
+                        })
+                    });
+                    cards.select("title").text(function (d) {
+                        return d.value;
+                    });
+                    cards.exit().remove();
+                });
+    };
+    // 행 라벨 생성
+    var rowLabels = heatmapSvg.selectAll(".rowLabel")
+            .data(rows)
+            .enter().append("text")
+            .text(function (d) {
+                return d;
+            })
+            .attr("x", 0)
+            .attr("y", function (d, i) {
+                return i * gridSize;
+            })
+            .style("text-anchor", "end")
+            .attr("transform", "translate(-6," + gridSize / 1.5 + ")")
+            .attr("class", function (d, i) {
+                return ((i >= 0 && i <= 4) ? "rowLabel mono axis axis-workweek" : "dayLabel mono axis");
+            });
+    // 열 라벨 생성
+    var colLabels = heatmapSvg.selectAll(".colLabel")
+            .data(cols)
+            .enter().append("text")
+            .text(function (d) {
+                return d;
+            })
+            .attr("x", function (d, i) {
+                return i * gridSize;
+            })
+            .attr("y", 10)
+            .style("text-anchor", "middle")
+            .attr("transform", "translate(" + gridSize / 2 + ", -14)")
+            .attr("class", function (d, i) {
+                return ((i >= 7 && i <= 16) ? "colLabel mono axis axis-worktime" : "timeLabel mono axis");
+            });
+    var addBlock = function () {
+        // 블록 생성
+        var $container = $('<div class="thumbnail col-md-3 block edit text-right"><a href="#"><i class="glyphicon glyphicon-remove "></i></a> <div class="caption"> <div class="block-display"> <h3></h3> </div> <div class="block-edit"> <p> <input type="text" class="form-control" placeholder="BLOCK NAME..."> </p> <p> <label>- Cluster</label> <select class="selectpicker" data-width="100%" data-style="btn-primary"> <option>Method 1</option> <option>Method 2</option> <option>Method 3</option> </select> </p> <p> <label>- Data</label><input id="input-folder-1" type="file"class="file"> </p> <p><a class="btn btn-success btn-block">Done</a></p> </div> </div> </div>');
+
+        // 고유 ID 부여
+        var d = new Date();
+        $container.attr('id','block-'+d.getTime());
+
+        // 화면 갱신
+        $('div.main').append($container);
+        $container.hide().show('normal');
+        $('.selectpicker').selectpicker('refresh');
+        $("input.file").fileinput();
+
+        return $container;
+    };
+</script>
+</body>
+</html>

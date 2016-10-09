@@ -1,0 +1,934 @@
+{% load staticfiles %}
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Geromics Heatmap</title>
+    <script type="text/javascript" src="/geromics/static/js/geromicsdata.js"></script>
+    <script type="text/javascript" src="/geromics/static/js/geromicscoldata.js"></script>
+    <script type="text/javascript" src="//d3js.org/d3.v4.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script type="text/javascript" src="/geromics/static/js/subgeromicsdata.js"></script>
+    <script type="text/javascript" src="/geromics/static/js/subgeromicscoldata.js"></script>
+    <script type="text/javascript" src="/geromics/static/js/currentInfo.js"></script>
+    <link rel="stylesheet" href="/geromics/static/css/jqueryui.css">
+    <link rel="stylesheet" href="/geromics/static/css/accordian.css">
+    <link rel="stylesheet" href="/geromics/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Slab" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.js"></script>
+
+
+    <style>
+        body {
+            margin: 0px;
+            padding: 0px;
+            font: 12px Arial;
+        }
+
+        .node circle {
+            fill: #999;
+        }
+
+        .node text {
+            font: 10px sans-serif;
+        }
+
+        .node--internal circle {
+            fill: #555;
+        }
+
+        .node--internal text {
+            text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+        }
+
+        .link {
+            fill: none;
+            stroke: #555;
+            stroke-opacity: 0.4;
+            stroke-width: 1.5px;
+        }
+
+        .link--active {
+            stroke: #000 !important;
+            stroke-width: 1.5px;
+        }
+
+        .link-extension--active {
+            stroke-opacity: .6;
+        }
+
+        .container {
+            display: table;
+            overflow: hidden;
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .node--active text {
+            font-weight: bold;
+        }
+
+        .filled {
+            fill: url(#mainGradient);
+        }
+
+        .outlined {
+            fill: none;
+            stroke: url(#mainGradient);
+            stroke-width: 4;
+        }
+
+        #demo {
+            background: url(/geromics/static/img/lablogo.png) no -repeat center center;
+            height: 200px;
+            width: 200px;
+        }
+
+
+    </style>
+</head>
+<body>
+<div id="titleDiv"
+     style=" border-top: 5px double #000000; border-bottom: 5px double #000000; height: auto; padding: 10px; text-align : center; margin-bottom: 10px;">
+    <img src="/geromics/static/img/lablogo.png">
+</div>
+<div id="heatmap" style=" width: 50%; float:left;  border-right: 5px double #000000; height: auto; padding: 10px;">
+    <h1 style="text-align:center"><p>Main Heatmap</p></h1>
+</div>
+
+<div class="container" style="width:48%; float:left; margin-left:10px">
+    <div id="setting" class="container">
+        <div id="colorDiv" style=" margin: 20px 10px 0px 0px;" ;>
+            <p style="font-size:24px; font-weight:bold; display:inline-block; margin-right : 10px">ClusterType:</p>
+            <select id="clustertpye">
+                <option value="single">single</option>
+                <option value="complete">complete</option>
+                <option value="average">average</option>
+                <option value="weighted">weighted</option>
+                <option value="centroid">centroid</option>
+                <option value="median">median</option>
+                <option value="ward">ward</option>
+            </select>
+            <p style="font-size:24px; font-weight:bold; display:inline-block; margin-right : 10px; margin-left : 20px">
+                Colors: </p>
+            <select id="color">
+                <option value="GBR">Green, Black, Red</option>
+                <option value="BWR">Blue, White, Red</option>
+                <option value="BWR5">Blue, White, Red 5</option>
+                <option value="ROY">Red, Orange, Yellow</option>
+            </select>
+            <p style="font-size:24px; font-weight:bold; display:inline-block; margin-right : 10px; margin-left:20px">
+                Order: </p>
+            <select id="order">
+                <option value="hclust">by cluster</option>
+                <option value="col">col</option>
+                <option value="row">row</option>
+            </select>
+
+        </div>
+        <div style="margin: 20px 10px 0px 0px;">
+
+            <form id="selectGene" name="input" method="post" action=""> {% csrf_token %}
+                <p style="font-size:24px; font-weight:bold; display:inline-block;">Gene number :</p>
+                <input type="text" name="startNum" maxlength="10" id="startNum">
+                <p style="font-size:24px; font-weight:bold; display:inline-block;">~</p>
+                <input type="text" name="endNum" maxlength="10" id="endNum">
+                <button type="button" id=query> Query</button>
+            </form>
+        </div>
+
+        <div class="ui-widget" style="margin: 20px 10px 20px 0px;">
+            <label for="tags"><p style="font-size:24px; font-weight:bold; display:inline-block;">Search Gene name : </p>
+            </label>
+            <input input="text" size="40" id="tags">
+            <button type="button" id="searchSelect"> Select</button>
+        </div>
+
+        <div id="accordion" style="border : 1px solid gray; width : 500px; height:200px; overflow-y:scroll"></div>
+
+        <div>
+            <button type="button" id="newBtn"> newBtn</button>
+            <button type="button" id="addBtn"> addBtn</button>
+        </div>
+
+        <div class="fileWrap" id="fileRead" style="margin-top:40px;">
+            <input type="file" id="files" name="file" onchange="readFile()">
+            <div id="fileSize"></div>
+            <textarea id="fileContent" style="width: 600px; height: 100px;" readonly=""></textarea>
+        </div>
+        <div>
+            <button type="button" id="runBtn"> Run</button>
+        </div>
+
+        <div id="subHeatmap" class="container">
+            <h1 style="text-align:center"><p>Sub Heatmap</p></h1>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var basicUrl = "geromics/";
+
+        //height of each row in the heatmap
+        var h = 10;
+        //width of each column in the heatmap
+        var w = 100;
+
+        //attach a SVG node to the document
+        //height and width defined by the row/column lengths
+        var width = (w * singlecols.length) + 100;
+        //d3.select("body").append("div").attr("id","heatmap");
+        var loadContent = [];
+
+        // Main Row Tree SVG Information
+        var treeWidth = (w * singlecols.length), treeHeight = h * singlerows.length;
+
+        var titleDiv = d3.select("body").select("#titleDiv").attr("class", "title");
+        titleDiv.append("p").append("font").attr("size", "30").text("Gene Expression");
+        titleDiv.append("p").append("font").attr("size", "24").text("Heatmap and Dendrogram (Hierarchy clustering)");
+        //d3.select("body").select("#heatmap").append("h1").text("Main Heatmap");
+
+
+        var rowSvg = d3.select("body").select("#heatmap")
+                .append("div").attr("class", "container")
+                .append("div").attr("style", "float:left")
+                .attr("style", "margin: 80px 0px 0px 0px")
+                .append("svg:svg")
+                .attr("width", treeWidth)
+                .attr("height", treeHeight)
+                .append("svg:g")
+                .attr("id", "tree")
+                .attr("transform", "translate(40, 0)");
+
+        // Main Column Tree SVG Information
+        var colTreeWidth = width, colTreeHeight = 80;
+        var colSvg = d3.select("body").select("#heatmap")
+                .append("div").attr("class", "container")
+                .append("div").attr("style", "float:right").attr("id", "heatmapSVG")
+                .append("svg:svg")
+                .attr("width", colTreeWidth)
+                .attr("height", colTreeHeight)
+                .append("svg:g")
+                .attr("id", "mainColTree")
+                .attr("transform", "translate(80, 0)");
+
+
+        // Main Heatmap SVG Information
+        var mainSVG = d3.select("body").select("#heatmapSVG")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", (h * singlerows.length + 100));
+        //.style('position','absolute')
+        //.style('top',0)
+        //.style('left',15);
+
+
+        // Sub Row Tree SVG Information
+        var subTreeWidth = (w * subcols.length), subTreeHeight = (h * subrows.length );
+        var subTreeSvg = d3.select("body").select("#subHeatmap")
+                .append("div").attr("class", "container")
+                .append("div").attr("style", "float:left")
+                .attr("style", "margin: 80px 0px 0px 0px")
+                .append("svg:svg")
+                .attr("width", subTreeWidth)
+                .attr("height", subTreeHeight)
+                .append("svg:g")
+                .attr("id", "subTree")
+                .attr("transform", "translate(40, 0)");
+
+
+        // Sub Column Tree SVG Information
+        var subColTreeWidth = (w * subcols.length) + 100, subColTreeHeight = 80;
+        var subTreeSvg = d3.select("body").select("#subHeatmap").append("div").attr("class", "container")
+                .append("div").attr("style", "float:right").attr("id", "subHeatmapSVG")
+                .append("svg:svg")
+                .attr("width", subColTreeWidth)
+                .attr("height", subColTreeHeight)
+                .append("svg:g")
+                .attr("id", "subColTree")
+                .attr("transform", "translate(60,0)");
+
+        // Sub Heatmap SVG Information
+        var subWidth = w * subcols.length + 100, subHeight = h * subrows.length + 100;
+        var subSVG = d3.select("body").select("#subHeatmapSVG")
+                .append("svg")
+                .attr("width", subWidth)
+                .attr("height", subHeight);
+
+        var legendDiv = d3.select("body").select("#subHeatmap").append("div").attr("class", "container")
+                .append("div").attr("style", "float:right").attr("id", "legendSvg")
+
+        var heatmapRow;
+        var heatmapRects;
+        var currentColor, currentData, currentCols, currentRows, currentCluster;
+
+        var legendWidth = 150,
+                legendHeight = 400,
+                padding = 5;
+
+        colorArr = ["#00ff00", "#000000", "#ff0000"];
+        colorScale = d3.scaleLinear()
+                .domain([minData, 0, maxData])
+                .range(colorArr);
+        currentColor = colorScale;
+
+
+        var div = d3.select('#legendSvg'),
+                legendSvg = div.append('svg').data(colorScale.domain());
+        legendSvg.attr('width', legendWidth).attr('height', legendHeight);
+        // Create the svg:defs element and the main gradient definition.
+        var svgDefs = legendSvg.append('defs');
+        var mainGradient = svgDefs.append('linearGradient')
+                .attr('id', 'mainGradient').attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
+
+
+        selectType(currentClusterType);
+        currentColor = colorScale;
+        legend(colorScale);
+        CreateHeatmap(currentData, currentCols, currentRows, mainSVG, "main");
+        CreateHeatmap(subdata, subcols, subrows, subSVG, "sub");
+
+
+        makeTree(currentCluster, "tree", treeHeight);
+        makeColTree(currentCluster, "main");
+        makeTree(currentCluster, "subTree", subTreeHeight);
+        makeColTree("sub", "sub");
+
+
+        var accorDiv = d3.select("body").select("#accordion");
+
+        var availableTags = [];
+        var dataDimension = [];
+        var saveDataList = [];
+        var geneName;
+
+
+        $(function () {
+            $("#accordion").accordion();
+            $.ajax({
+                type: "GET",
+                url: "/geromics/0/22276/getData",
+                success: function (data) {
+                    var zeroData = processData(data)
+                    //console.log(geroData[0]);
+                }
+            });
+        });
+
+
+        //Search Function Part
+        //Input Data .csv
+
+        function processData(allText) {
+            var allTextLines = allText.split(/\r\n|\n/);
+            var lines = [];
+            for (var i = 0; i < allTextLines.length; i++) {
+                geneName = allTextLines[i].split(/\t/);
+                availableTags.push(geneName[0]);
+                for (var j = 0; j < geneName.length; j++) {
+                    dataDimension.push(geneName[j]);
+                }
+            }
+        }
+
+
+        $(function () {
+            $("#tags").autocomplete({
+                source: function (request, response) {
+                    var results = $.ui.autocomplete.filter(availableTags, request.term);
+                    response(results.slice(0, 30));
+                },
+                select: function (event, ui) {
+                    var dataStr = "";
+                    for (var i = 0; i < collength + 2; i++) {
+                        dataStr += "\t" + dataDimension[$.inArray(ui.item.value, availableTags) * 5 + i];
+                    }
+                    var h3Attr = accorDiv.append("h3")
+                            .attr("class", "ui-accordion-header ui-corner-top ui-state-default ui-accordion-icons ui-accordion-header-collapsed ui-corner-all")
+                    var spanAttr = h3Attr
+                            .append("span")
+                            .attr("class", "ui-accordion-header-icon ui-icon ui-icon-triangle-1-s");
+                    h3Attr
+                            .text(dataStr);
+                    saveDataList.push(ui.item.value);
+                }
+            });
+        });
+
+
+        function httpGet(Url, httpType) {
+            var http = new XMLHttpRequest();
+            if (httpType == "query") {
+                http.open("GET", Url, false);
+            } else if (httpType == "new" || httpType == "add") {
+                var saveDataStr = "";
+                for (var i = 0; i < saveDataList.length; i++) {
+                    saveDataStr += "dataList[]=" + saveDataList[i] + "&";
+                }
+                http.open("GET", Url + "?" + saveDataStr + httpType, false);
+                console.log(Url + "?" + saveDataStr + httpType);
+            } else if (httpType == "load") {
+                var loadContentStr = "";
+                for (var i = 0; i < loadContent.length - 1; i++) {
+                    loadContentStr += "content[]=" + encodeURIComponent(loadContent[i]) + "&";
+                }
+
+                http.open("GET", Url + loadContentStr, false);
+            } else if (httpType == "run") {
+                var fileName = "/home/chunggilee/geromics/django/static/file/load.txt"
+                http.open("GET", Url + "fileName=" + fileName, false);
+            }
+            http.send(null);
+            return http.responseText;
+        }
+
+        // This source code represent buttons on UI
+        $(document).ready(function () {
+            // Query Button
+            $('#query').click(function () {
+                var start = document.getElementById('startNum').value;
+                var end = document.getElementById('endNum').value;
+                var urlType = "query";
+                var url = basicUrl + start + "/" + end + "/" + urlType;
+                httpGet(url, "query");
+                /*	$.ajax({
+                 type: "GET",
+                 url: "/geromix/data.html",
+                 data: {start:start, end:end, urlType:urlType },
+                 success: function(data){
+                 console.log(data);
+                 }
+                 })*/
+                clusterFun(currentCluster);
+                location.reload();
+
+            });
+            // New Button
+            $('#newBtn').click(function () {
+                /*$.ajax({
+                 type: "GET",
+                 url: "/geromix/searchData.html",
+                 data: {dataList : saveDataNum, btnType:"new"},
+                 success: function(data){
+                 console.log(data);
+                 }
+
+                 })*/
+                var url = basicUrl + "searchData.html";
+                httpGet(url, "new");
+                clusterFun(currentCluster);
+                location.reload();
+
+
+            });
+            // Add Button
+            $('#addBtn').click(function () {
+                /*$.ajax({
+                 type: "GET",
+                 url: "/geromix/searchData.html",
+                 data: {dataList : saveDataNum, btnType:"add"},
+                 success: function(data){
+                 console.log(data);
+                 }
+                 })*/
+                var url = basicUrl + "searchData1.html";
+
+                httpGet(url, "add");
+
+                clusterFun(currentCluster);
+                location.reload();
+
+            });
+
+            $('#searchSelect').click(function () {
+                var similarData = document.getElementById('tags').value;
+                $.ajax({
+                    type: "GET",
+                    url: basicUrl + "similarData.html",
+                    data: {similarData: similarData},
+                    success: function (data) {
+                        var dataLines = data.split(/\r\n|\n/);
+
+                        for (var i = 0; i < dataLines.length - 1; i++) {
+                            var similarDataStr = "\t" + dataLines[i];
+                            var h3Attr = accorDiv.append("h3")
+                                    .attr("class", "ui-accordion-header ui-corner-top ui-state-default ui-accordion-icons ui-accordion-header-collapsed ui-corner-all")
+                            var spanAttr = h3Attr
+                                    .append("span")
+                                    .attr("class", "ui-accordion-header-icon ui-icon ui-icon-triangle-1-s");
+                            h3Attr
+                                    .text(similarDataStr);
+                            similarGeneName = dataLines[i].split(/\t/);
+                            saveDataList.push(similarGeneName[0]);
+                        }
+                        console.log(data);
+
+
+                    }
+                })
+            });
+
+            $('#runBtn').click(function () {
+                console.log(files)
+                var runUrl = basicUrl + "doCluster.html?";
+                httpGet(runUrl, "run");
+                location.reload();
+
+
+            });
+
+        });
+
+        function clusterFun(cluster) {
+            $.ajax({
+                type: 'GET',
+                url: basicUrl + 'current.html',
+                data: {cluster: cluster},
+                success: function (data) {
+                }
+
+
+            });
+        }
+
+
+        d3.select("#order").on("change", function () {
+            order(this.value);
+        });
+
+        function order(value) {
+        }
+
+        d3.select("#clustertpye").on("change", function () {
+            clustertype(this.value, currentColor);
+        });
+
+        function clustertype(value, color) {
+            mainSVG.selectAll("g").remove();
+            mainSVG.selectAll("text").remove();
+            rowSvg.selectAll("path").remove();
+            rowSvg.selectAll("g").remove();
+            colSvg.selectAll("path").remove();
+            colSvg.selectAll("g").remove();
+            selectType(value);
+            CreateHeatmap(currentData, currentCols, currentRows, mainSVG, "main");
+            legend(color);
+            makeTree(currentCluster, "tree", treeHeight);
+            makeColTree(currentCluster, "main");
+            clusterFun(currentCluster);
+
+        }
+
+        d3.select("#color").on("change", function () {
+            color(this.value);
+        });
+
+        function color(value) {
+            mainSVG.selectAll("g").remove();
+            mainSVG.selectAll("text").remove();
+            subSVG.selectAll("g").remove();
+            subSVG.selectAll("text").remove();
+            if (value == "BWR") {
+                colorArr = ["blue", "white", "red"];
+                colorScale = d3.scaleLinear()
+                        .domain([minData, 0, maxData])
+                        .range(colorArr);
+                currentColor = colorScale;
+            } else if (value == "GBR") {
+                colorArr = ["#00ff00", "#000000", "#ff0000"];
+                colorScale = d3.scaleLinear()
+                        .domain([minData, 0, maxData])
+                        .range(colorArr);
+                currentColor = colorScale;
+
+            } else if (value == "BWR5") {
+                colorArr = ["#0000ff", "#0088ff", "#ffffff", "#ff0088", "#ff0000"];
+                colorScale = d3.scaleLinear()
+                        .domain([minData, -1, 0, 1, maxData])
+                        .range(colorArr);
+                currentColor = colorScale;
+            } else if (value == "ROY") {
+                colorArr = ["#ffff00", "#ffa500", "#ff0000"];
+                colorScale = d3.scaleLinear()
+                        .domain([minData, 0, maxData])
+                        .range(colorArr);
+                currentColor = colorScale;
+
+            }
+            legend(colorScale);
+            CreateHeatmap(currentData, currentCols, currentRows, mainSVG, "main");
+            CreateHeatmap(subdata, subcols, subrows, subSVG, "sub");
+
+        }
+
+        function legend(colorScale) {
+
+            // Create the stops of the main gradient. Each stop will be assigned
+            // a class to style the stop using CSS.
+            mainGradient.selectAll("stop").remove();
+            mainGradient.selectAll("rect").remove();
+            legendSvg.selectAll("text").remove();
+            for (var i = 0; i < colorArr.length; i++) {
+                mainGradient.append('stop')
+                        .attr('stop-color', colorArr[i])
+                        .attr('offset', i / (colorArr.length - 1));
+            }
+            // Use the gradient to set the shape fill, via CSS.
+            legendSvg.append('rect')
+                    .classed('filled', true)
+                    .attr('x', padding)
+                    .attr('y', padding)
+                    .attr('width', (legendWidth / 3) - 1.5 * padding)
+                    .attr('height', legendHeight - 2 * padding);
+
+            for (var i = 0; i < 3; i++) {
+                legendSvg.append("text")
+                        .attr("x", 140)
+                        .attr("y", 5 + 195 * i)
+                        .attr("dy", ".35em")
+                        .style("text-anchor", "end")
+                        .text(function () {
+                            if (i == 0) {
+                                return minData
+                            }
+                            else if (i == 1) {
+                                return 0
+                            }
+                            else {
+                                return maxData
+                            }
+                        });
+
+            }
+        }
+
+        function CreateHeatmap(data, cols, rows, mySVG, name) {
+            //generate the heatmap
+            heatmapRow = mySVG.selectAll(".heatmap")
+                    .data(data)
+                    .enter().append("g");
+            // Draw the heatmap
+            heatmapRects = heatmapRow
+                    .selectAll(".rect")
+                    .data(function (d) {
+                        return d;
+                    }).enter().append("svg:rect")
+                    .attr('width', w)
+                    .attr('height', h)
+                    .attr('x', function (d) {
+                        return (d[2] * w) + 75;
+                    })
+                    .attr('y', function (d) {
+                        return (d[1] * h) + 50;
+
+                    })
+                    .style('fill', function (d) {
+                        return colorScale(d[0]);
+                    });
+
+
+            //console.log(cols);
+            //label columns (Condition name)
+            var columnLabel = mySVG.selectAll(".colLabel")
+                    .data(cols)
+                    .enter().append('svg:text')
+                    .attr('x', function (d, i) {
+                        return ((i + 0.5) * w) + 75;
+                    })
+                    .attr('y', function (d, i) {
+                        return 30;
+                    })
+                    .attr('class', 'label')
+                    .style('text-anchor', 'middle')
+                    .text(function (d) {
+                        return d;
+                    });
+
+            columnLabel
+                    .on("mouseover", function () {
+                        d3.select(this).style("font-weight", "bold").style("font-size", "18")
+                    })
+                    .on("mouseout", function () {
+                        d3.select(this).style("font-weight", "").style("font-size", "12")
+                    });
+
+
+            //label row (Gene name)
+            var rowLabel = mySVG.selectAll(".rowLabel")
+                    .data(rows)
+                    .enter().append('svg:text')
+                    .attr('x', 30)
+                    .attr('y', function (d, i) {
+                        return ((i + 3.5) * h) + 25;
+                    })
+                    .attr('class', 'label')
+                    .style('text-anchor', 'middle')
+                    .text(function (d) {
+                        return d;
+                    });
+
+            rowLabel
+                    .on("mouseover", function () {
+                        d3.select(this).style("font-weight", "bold").style("font-size", "18")
+                    })
+                    .on("mouseout", function () {
+                        d3.select(this).style("font-weight", "").style("font-size", "12")
+                    });
+
+
+            //expression value label
+            var expLab = d3.select("body")
+                    .append('div')
+                    .style('height', 23)
+                    .style('text-align', 'center')
+                    .style('background', 'FFE53B')
+                    .style('opacity', 0.8)
+                    .style('top', 0)
+                    .style('padding', 10)
+                    .style('left', 40)
+                    .style('display', 'none');
+
+
+            //heatmap mouse events
+            heatmapRow
+                    .on('mouseover', function (d, i) {
+                        d3.select(this)
+                                .attr('stroke-width', 1)
+                                .attr('stroke', 'black')
+
+                        output = '<b>' + rows[i] + '</b><br>';
+                        for (var j = 0, count = data[i].length; j < count; j++) {
+                            output += data[i][colSeq[j]][0] + ", ";
+                        }
+
+                        expLab
+                                .style('top', (i * h))
+                                .style('display', 'block')
+                                .html(output.substring(0, output.length - 3));
+                    })
+                    .on('mouseout', function (d, i) {
+                        d3.select(this)
+                                .attr('stroke-width', 0)
+                                .attr('stroke', 'none')
+
+                        expLab
+                                .style('display', 'none')
+                    })
+        }
+
+        function makeTree(clusterName, treeId, makeTreeHeight) {
+
+            var g = d3.select("#" + treeId);
+
+            var tree = d3.cluster().size([makeTreeHeight, 300]);
+            //This code help to find the parent id in this hierarchy, so change this part.
+            var stratify = d3.stratify().parentId(function (d) {
+                return d.id.substring(0, d.id.lastIndexOf("."));
+            });
+            var path = "";
+            if (treeId == "tree") {
+                path = basicUrl + "static/csv/" + clusterName + "tree.csv";
+            } else if (treeId == "subTree") {
+                path = basicUrl + "static/csv/subtree.csv";
+            }
+            //console.log(path);
+
+            d3.csv(path, function (error, data) {
+                //console.log("#"+treeId);
+                if (error) throw error;
+
+                var root = stratify(data);
+                tree(root);
+
+                var link = g.selectAll(".link").data(root.descendants().slice(1))
+                        .enter().append("path").attr("class", "link").attr("d", function (d) {
+                            return "M" + d.y + "," + d.x
+                                    + " L " + d.parent.y + " " + d.x + " L " + d.parent.y + " " + d.parent.x;
+
+                        });
+
+                link
+                        .on("mouseover", function (d, i) {
+                            d3.select(d3.select(this)._groups[0][0]).style("stroke", "black").style("stroke-width", 2)
+                        })
+                        .on("mouseout", function () {
+                            d3.select(this).style("stroke", "").style("stroke-width", "")
+                        });
+
+
+                var node = g.selectAll(".node")
+                        .data(root.descendants())
+                        .enter().append("g")
+                        .attr("class", function (d) {
+                            return "node" + (d.children ? " node--internal" : " node--leaf");
+                        })
+                        .attr("transform", function (d) {
+                            return "translate(" + d.y + "," + d.x + ")";
+                        })
+
+                node.append("circle").attr("r", 2.5)
+                        .attr("id", "node")
+                        .on("mouseover", function (d) {
+                            d3.select(this).attr("r", 5)
+                        })
+                        .on("mouseout", function () {
+                            d3.select(this).attr("r", 2.5)
+                        })
+                        .on("click", function (d) {
+                            subSVG.selectAll("g").remove();
+                            subSVG.selectAll("text").remove();
+                            var smallHeatmapURL = basicUrl + "subheatmap.html";
+                            var id = d.id.substring(d.id.lastIndexOf(".") + 1);
+                            smallHeatmapURL = smallHeatmapURL + "?nodeId=" + id + "&length=" + rowlength + "&clusterName=" + clusterName;
+
+                            var httpRequest;
+                            if (window.XMLHttpRequest) { // 모질라, 사파리등 그외 브라우저, ...
+                                httpRequest = new XMLHttpRequest();
+                            } else if (window.ActiveXObject) { // IE 8 이상
+                                httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+                            }
+                            httpRequest.onreadystatechange = function () {
+                                if (httpRequest.readyState === 4) {
+                                    CreateHeatmap(subdata, subcols, subrows, subSVG, "sub");
+                                }
+
+                            };
+                            httpRequest.open('GET', smallHeatmapURL);
+                            console.log(smallHeatmapURL);
+                            httpRequest.send();
+                            clusterFun(currentCluster);
+                            location.reload();
+                        });
+
+                node.append("text").attr("dy", 3).attr("x", function (d) {
+                    return d.children ? -8 : 8;
+                })
+                        .style("text-anchor", function (d) {
+                            return d.children ? "end" : "start";
+                        })
+                        .text(function (d) {
+                            return d.id.substring(d.id.lastIndexOf(".") + 1);
+                        })
+                        .on("mouseover", function () {
+                            d3.select(this).style("font-weight", "bold")
+                        })
+                        .on("mouseout", function () {
+                            d3.select(this).style("font-weight", "")
+                        })
+            });
+        }
+
+        function makeColTree(clusterName, treeId) {
+
+            if (treeId == "main") {
+                var g = d3.select("#" + treeId + "ColTree");
+                var path = basicUrl + "static/csv/" + clusterName + "coltree.csv";
+            } else if (treeId == "sub") {
+                var g = d3.select("#" + treeId + "ColTree");
+                var path = basicUrl + "static/csv/subcoltree.csv"
+            }
+
+            var tree = d3.cluster().size([400, treeWidth - 320]);
+            var stratify = d3.stratify().parentId(function (d) {
+                return d.id.substring(0, d.id.lastIndexOf("."));
+            });
+
+            d3.csv(path, function (error, data) {
+                if (error) throw error;
+
+                var root = stratify(data);
+                tree(root);
+                var link = g.selectAll(".link").data(root.descendants().slice(1))
+                        .enter().append("path").attr("class", "link").attr("d", function (d) {
+                            return "M" + d.x + "," + d.y
+                                    + " L " + d.x + " " + d.parent.y + " L " + d.parent.x + " " + d.parent.y;
+                        });
+            });
+        }
+
+        function selectType(clusterType) {
+            if (clusterType == "single") {
+                currentData = singledata, currentCols = singlecols, currentRows = singlerows, currentCluster = clusterType;
+            } else if (clusterType == "complete") {
+                currentData = completedata, currentCols = completecols, currentRows = completerows, currentCluster = clusterType;
+            } else if (clusterType == "average") {
+                currentData = averagedata, currentCols = averagecols, currentRows = averagerows, currentCluster = clusterType;
+            } else if (clusterType == "weighted") {
+                currentData = weighteddata, currentCols = weightedcols, currentRows = weightedrows, currentCluster = clusterType;
+            } else if (clusterType == "centroid") {
+                currentData = centroiddata, currentCols = centroidcols, currentRows = centroidrows, currentCluster = clusterType;
+            } else if (clusterType == "median") {
+                currentData = mediandata, currentCols = mediancols, currentRows = medianrows, currentCluster = clusterType;
+            } else if (clusterType == "ward") {
+                currentData = warddata, currentCols = wardcols, currentRows = wardrows, currentCluster = clusterType;
+            }
+        }
+        var files;
+        function readFile() {
+            files = document.getElementById('files').files;
+            if (!files.length) {
+                alert('파일을 선택해주세요');
+                return;
+            }
+
+            var file = files[0];
+            document.getElementById('fileSize').textContent = file.size + "bytes";
+
+            var reader = new FileReader();
+
+            reader.onload = function (event) {
+                var content = document.getElementById('fileContent');
+                content.textContent = event.target.result;
+
+                var contentLines = content.textContent.split(/\r\n|\n/);
+                for (var i = 0; i < contentLines.length; i++) {
+                    var line = contentLines[i].split(/\t/);
+                    var contentLineStr = "";
+                    for (var j = 0; j < line.length; j++) {
+
+                        if (j == line.length - 1) {
+                            contentLineStr += line[j] + "\n";
+                        } else {
+                            contentLineStr += line[j] + "\t";
+                        }
+                    }
+                    loadContent.push(contentLineStr);
+
+                }
+                loadUrl = basicUrl + "makeFile.html?";
+                httpGet(loadUrl, "load")
+
+            };
+
+            reader.onerror = function (event) {
+                var errcode = event.target.error.code;
+                if (errcode == 1) {
+                    alert("File을 찾지 못하였습니다");
+                } else if (errcode == 2) {
+                    alert("안전하지 못하거나 File에 변경이 있습니다");
+                } else if (errcode == 3) {
+                    alert("읽기가 중지되었습니다");
+                } else if (errcode == 4) {
+                    alert("접근권한 문제로 파일을 읽지 못하였습니다");
+                } else if (errcode == 5) {
+                    alert("URL 길이 제한문제가 있습니다");
+                }
+            };
+
+
+            reader.readAsText(file); //기본 인코딩 : utf-8
+        }
+        ;
+
+
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+

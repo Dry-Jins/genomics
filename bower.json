@@ -1,0 +1,35 @@
+{
+  "name": "gene_chrome",
+  "description": "Simple gene viwer based on D3JS",
+  "main": "index.html",
+  "authors": [
+    "SkyJin"
+  ],
+  "license": "ISC",
+  "keywords": [
+    "d3js"
+  ],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "js"
+  ],
+  "dependencies": {
+    "bootstrap-fileinput": "^4.3.4",
+    "bootstrap-select": "^1.11.2",
+    "bootstrap-toggle": "^2.2.2",
+    "d3": "^4.2.2",
+    "react": "^15.3.1",
+    "lodash": "^4.15.0",
+    "babel": "^5.8.38",
+    "react-bootstrap": "^0.30.3",
+    "datatables.net": "^1.10.12",
+    "datatables.net-bs": "^1.10.12",
+    "datatables.net-autofill": "^2.1.2",
+    "datatables-autofill-bootstrap": "datatables.net-autofill-bs#^2.1.2"
+  }
+}

@@ -650,7 +650,7 @@
             });
             var path = "";
             if (treeType == "tree") {
-                path = blockManager.basicUrl + clusterName + "tree.csv";
+                path = blockManager.basicUrl + "" + clusterName + "tree.csv";
             } else if (treeType == "subTree") {
                 path = blockManager.basicUrl + "subtree.csv";
             }
@@ -744,7 +744,7 @@
             console.log(treeWidth);
             if (treeType == "main") {
                 var g = d3.select("#" + treeId);
-                var path = blockManager.basicUrl + "/" + clusterName + "coltree.csv";
+                var path = blockManager.basicUrl + clusterName + "coltree.csv";
             } else if (treeType == "sub") {
                 var g = d3.select("#" + treeId);
                 var path = blockManager.basicUrl + "subcoltree.csv"

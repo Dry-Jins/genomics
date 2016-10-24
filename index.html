@@ -14,6 +14,25 @@
     <link href="js/datatables.net-bs/css/dataTables.bootstrap.min.css" rel="stylesheet">
     <link href="js/jquery-ui/themes/base/jquery-ui.min.css" rel="stylesheet">
     <style>
+        .toggle.ios, .toggle-on.ios, .toggle-off.ios {
+            border-radius: 20px;
+        }
+
+        .toggle.ios .toggle-handle {
+            border-radius: 20px;
+        }
+
+        .block-display {
+            position: relative;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            height: 800px;
+        }
+
+        .panel-title {
+            line-height: 34px;
+        }
+
         .node circle {
             fill: #999;
         }
@@ -44,94 +63,6 @@
 
         .link-extension--active {
             stroke-opacity: .6;
-        }
-
-        .heatmap-container {
-            display: table;
-            overflow: auto;
-            display: table-cell;
-            vertical-align: middle;
-        }
-
-        .node--active text {
-            font-weight: bold;
-        }
-
-        .filled {
-            fill: url(#mainGradient);
-        }
-
-        .outlined {
-            fill: none;
-            stroke: url(#mainGradient);
-            stroke-width: 4;
-        }
-
-        #demo {
-            background: url(/geromics/static/img/lablogo.png) no -repeat center center;
-            height: 200px;
-            width: 200px;
-        }
-
-        .panel-title {
-            line-height: 34px;
-        }
-
-        rect.bordered {
-            stroke: #E6E6E6;
-            stroke-width: 2px;
-        }
-
-        text.mono {
-            font-size: 7pt;
-            font-family: Consolas, courier;
-            fill: #aaa;
-        }
-
-        text.axis-workweek {
-            fill: #000;
-        }
-
-        text.axis-worktime {
-            fill: #000;
-        }
-
-        .node circle {
-            fill: #fff;
-            stroke: steelblue;
-            stroke-width: 1.5px;
-        }
-
-        .link {
-            fill: none;
-            stroke: #ccc;
-            stroke-width: 3px;
-        }
-
-        .node--internal text {
-            text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
-        }
-
-        .link {
-            fill: none;
-            stroke: #555;
-            stroke-opacity: 0.4;
-            stroke-width: 1.5px;
-        }
-
-        .toggle.ios, .toggle-on.ios, .toggle-off.ios {
-            border-radius: 20px;
-        }
-
-        .toggle.ios .toggle-handle {
-            border-radius: 20px;
-        }
-
-        .block-display {
-            position: relative;
-        }
-
-        .block.edit {
         }
     </style>
 
@@ -198,6 +129,7 @@
                     </h3>
                 </div>
                 <div class="panel-body network-block">
+                    <svg id="network-edge"></svg>
                 </div>
             </div>
         </div>
@@ -207,7 +139,7 @@
                     <h3 class="panel-title">
                         Frequency
                         <div class="pull-right" style="inline">
-                            <input type="checkbox" checked data-toggle="toggle" data-on="Bar Chart" data-off="Table"
+                            <input type="checkbox" checked data-toggle="toggle" data-on="Table" data-off="Bar Chart"
                                    data-onstyle="primary" data-offstyle="danger" data-size="small" data-style="ios"
                                    id="toggle_bar_table">
                         </div>
@@ -237,14 +169,15 @@
 <script src="js/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
 <script src="js/bootstrap-toggle/js/bootstrap-toggle.min.js"></script>
 <script src="js/d3/d3.min.js"></script>
+<script src="js/d3-glyphEdge.js"></script>
 <script src="js/babel/browser.min.js"></script>
 <script src="js/datatables.net/js/jquery.dataTables.min.js"></script>
 <script src="js/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
-<script type="text/javascript" src="js/geromicsdata.js"></script>
-<script type="text/javascript" src="js/geromicscoldata.js"></script>
-<script type="text/javascript" src="js/subgeromicsdata.js"></script>
-<script type="text/javascript" src="js/subgeromicscoldata.js"></script>
-<script type="text/javascript" src="js/currentInfo.js"></script>
+<script type="text/javascript" src="/geromics/static/js/geromicsdata.js"></script>
+<script type="text/javascript" src="/geromics/static/js/geromicscoldata.js"></script>
+<script type="text/javascript" src="/geromics/static/js/subgeromicsdata.js"></script>
+<script type="text/javascript" src="/geromics/static/js/subgeromicscoldata.js"></script>
+<script type="text/javascript" src="/geromics/static/js/currentInfo.js"></script>
 <script>
     // TODO 1.1 히트맵 + 클러스터 그래프
     // TODO 1.1.1  동적 D3 블록 그래프 크기 조정
@@ -252,7 +185,110 @@
     // TODO 1.3. 네트워크 그래프
     var test;
     // Visualization 담당 스크립트
+
+
     var visualizer = {
+        createTaperedNetworkGraph: function () {
+            var svg = d3.select("#network-edge");
+
+            svg.attr("width",$("div.network-block").width());
+
+            var width=  svg.attr("width");
+            var height = 522;
+            svg.attr("height", height);
+
+            var simulation = d3.forceSimulation()
+                    .force("link", d3.forceLink().id(function(d) { return d.id; }))
+                    //.force("collide",d3.forceCollide( function(d){return d.module + 8 }).iterations(16) )
+                    .force("charge", d3.forceManyBody())
+                    .force("center", d3.forceCenter(width / 2, height / 2));
+
+            d3.json("network.json", function(error, graph) {
+                if (error) throw error;
+
+                var link = svg.append("g")
+                        .attr("class", "tapperd-edge")
+                        .selectAll("path")
+                        .data(graph.links)
+                        .enter().append("path")
+                        .style("fill", "darkgreen")
+                        .style("stroke", "black")
+                        .style("stroke-width", 1)
+                        .style("opacity", 0.75);
+
+                var node = svg.append("g")
+                        .attr("class", "graph-node")
+                        .selectAll("circle")
+                        .data(graph.nodes)
+                        .enter().append("circle")
+                        .attr("r", 5)
+                        .attr("fill", function(d) { return "black"; })
+                        .call(d3.drag()
+                                .on("start", dragstarted)
+                                .on("drag", dragged)
+                                .on("end", dragended));
+
+                node.append("title")
+                        .text(function(d) { return d.id; });
+
+                simulation
+                        .nodes(graph.nodes)
+                        .on("tick", ticked);
+
+                simulation.force("link")
+                        .links(graph.links);
+
+                function ticked() {
+                    link
+                            .attr("x1", function(d) { return d.source.x; })
+                            .attr("y1", function(d) { return d.source.y; })
+                            .attr("x2", function(d) { return d.target.x; })
+                            .attr("y2", function(d) { return d.target.y; })
+                            .attr("d", function (d) {
+                                return comet(d, 5)
+                            })
+                            .style("fill", "gold");
+
+                    node
+                            .attr("cx", function(d) { return d.x; })
+                            .attr("cy", function(d) { return d.y; })
+
+                    function comet(d, nodeSize) {
+                        var diffX = d.target.y - d.source.y;
+                        var diffY = d.target.x - d.source.x;
+
+                        var angle0 = ( Math.atan2( diffY, diffX ) + ( Math.PI / 2 ) );
+                        var angle1 = angle0 - ( Math.PI / 2 );
+                        var angle2 = angle0 + ( Math.PI / 2 );
+
+                        var x1 = d.target.x + (nodeSize * Math.cos(angle1));
+                        var y1 = d.target.y - (nodeSize * Math.sin(angle1));
+                        var x2 = d.target.x + (nodeSize * Math.cos(angle2));
+                        var y2 = d.target.y - (nodeSize * Math.sin(angle2));
+
+                        return "M" + x1 + "," + y1 + "L" + x2 + "," + y2 + " L " + d.source.x + "," + d.source.y + "z";
+                    }
+                }
+            });
+
+            function dragstarted(d) {
+                if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(d) {
+                d.fx = d3.event.x;
+                d.fy = d3.event.y;
+            }
+
+            function dragended(d) {
+                if (!d3.event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+        },
         createNetworkGraph: function () {
             var width = $("div.network-block").width();
             var height = 600;
@@ -487,9 +523,9 @@
                     .attr('id', 'mainGradient').attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
 
             //height of each row in the createHeatmap
-            var h = 10;
+            var h = 80;
             //width of each column in the createHeatmap
-            var w = 100;
+            var w = 80;
             //attach a SVG node to the document
             //height and width defined by the row/column lengths
             var width = (w * singlecols.length) + 100;
@@ -498,11 +534,12 @@
             // Main Row Tree SVG Information
             var treeWidth = (w * singlecols.length), treeHeight = h * singlerows.length;
             // Main Column Tree SVG Information
-            var colTreeWidth = width-25, colTreeHeight = 80;
+            var colTreeWidth = width - 25, colTreeHeight = 80;
+            d3.select("#" + blockId).select("div.block-display").html("");
             var mySVG = d3.select("#" + blockId).select("div.block-display")
-                    .append("svg")
-                    .attr("viewBox", "0 0 900 1100")
-                    .attr("width","100%")
+                    .append("svg");
+                    //.attr("viewBox", "0 0 900 1100")
+
             var heatmapG = mySVG.append('g')
                     .attr("transform", "translate(400, 50)")
                     .attr("id", heatmapId)
@@ -517,17 +554,11 @@
             var treeG = mySVG
                     .append("g")
                     .attr("id", treeId)
-                    .attr("transform", "translate(50, 100)")
-                    .attr("height", treeHeight)
+                    .attr("transform", "translate(50, 3540)")
+
             //.attr("width", treeWidth)
 
             //.attr("transform", "translate(40, 0)");
-
-            var titleDiv = d3.select("body").select("#titleDiv").attr("class", "title");
-            titleDiv.append("p").append("font").attr("size", "30").text("Gene Expression");
-            titleDiv.append("p").append("font").attr("size", "24").text("Heatmap and Dendrogram (Hierarchy clustering)");
-            //d3.select("body").select("#createHeatmap").append("h1").text("Main createHeatmap");
-
             //generate the Heatmap
             heatmapRow = heatmapG.selectAll(".heatmap")
                     .data(data)
@@ -551,13 +582,15 @@
                     .style('fill', function (d) {
                         return colorScale(d[0]);
                     });
+            console.log(heatmapRects.attr('height'))
+            mySVG.attr("viewBox","0 0 900 "+(treeHeight+110));
 
             //label columns (Condition name)
             var columnLabel = heatmapG.selectAll(".colLabel")
                     .data(cols)
                     .enter().append('svg:text')
                     .attr('x', function (d, i) {
-                        return ((i + 0.5) * w) + 75;
+                        return ((i + 0.5) * w + 75);
                     })
                     .attr('y', function (d, i) {
                         return 30;
@@ -583,7 +616,7 @@
                     .enter().append('svg:text')
                     .attr('x', 30)
                     .attr('y', function (d, i) {
-                        return ((i + 3.5) * h) + 25;
+                        return (i * h) +95
                     })
                     .attr('class', 'label')
                     .style('text-anchor', 'middle')
@@ -635,24 +668,32 @@
 
                         expLab
                                 .style('display', 'none')
-                    })
+                    });
 
             visualizer.makeTree(currentCluster, treeId, "tree", treeHeight);
             visualizer.makeColTree(currentCluster, colTreeId, "main", colTreeWidth);
         },
         makeTree: function (clusterName, treeId, treeType, makeTreeHeight) {
             var g = d3.select("#" + treeId);
-            console.log(g);
-            var tree = d3.cluster().size([makeTreeHeight, 280]);
+            console.log(makeTreeHeight);
+            var tree = d3.cluster()
+                    //.size([makeTreeHeight,320])
+                    .nodeSize([80,25])
+                    .separation(separation);
+
+            function separation(a, b) {
+                return a.parent == b.parent ? 1 : 1;
+            }
+
             //This code help to find the parent id in this hierarchy, so change this part.
             var stratify = d3.stratify().parentId(function (d) {
                 return d.id.substring(0, d.id.lastIndexOf("."));
             });
             var path = "";
             if (treeType == "tree") {
-                path = blockManager.basicUrl + "" + clusterName + "tree.csv";
+                path = blockManager.basicUrl + "static/csv/" + clusterName + "tree.csv";
             } else if (treeType == "subTree") {
-                path = blockManager.basicUrl + "subtree.csv";
+                path = blockManager.basicUrl + "static/csv/subtree.csv";
             }
             //console.log(path);
 
@@ -744,10 +785,10 @@
             console.log(treeWidth);
             if (treeType == "main") {
                 var g = d3.select("#" + treeId);
-                var path = blockManager.basicUrl + clusterName + "coltree.csv";
+                var path = blockManager.basicUrl + "static/csv/" + clusterName + "coltree.csv";
             } else if (treeType == "sub") {
                 var g = d3.select("#" + treeId);
-                var path = blockManager.basicUrl + "subcoltree.csv"
+                var path = blockManager.basicUrl + "static/csv/subcoltree.csv"
             }
 
             var tree = d3.cluster().size([treeWidth, 50]);
@@ -808,7 +849,8 @@
 <script>
     // TODO 테스트용 임시 코드
     $(document).ready(function () {
-        visualizer.createNetworkGraph();
+        //visualizer.createNetworkGraph();
+        visualizer.createTaperedNetworkGraph();
         visualizer.createBarGraph();
         $('#toggle_bar_table').on('change', function (e) {
             $('div.bar-table').toggle();
@@ -824,7 +866,7 @@
 <script>
     // 블록 관리
     var blockManager = {
-        basicUrl: "",
+        basicUrl: "geromics/",
         blockMap: {},
         init: function () {
             this.blockMap = {};

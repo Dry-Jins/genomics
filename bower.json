@@ -30,6 +30,7 @@
     "datatables.net": "^1.10.12",
     "datatables.net-bs": "^1.10.12",
     "datatables.net-autofill": "^2.1.2",
-    "datatables-autofill-bootstrap": "datatables.net-autofill-bs#^2.1.2"
+    "datatables-autofill-bootstrap": "datatables.net-autofill-bs#^2.1.2",
+    "d3-tip": "^0.7.1"
   }
 }

@@ -13,7 +13,18 @@
     <link href="js/bootstrap-select/dist/css/bootstrap-select.min.css" rel="stylesheet">
     <link href="js/datatables.net-bs/css/dataTables.bootstrap.min.css" rel="stylesheet">
     <link href="js/jquery-ui/themes/base/jquery-ui.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="//rawgithub.com/Caged/d3-tip/master/examples/example-styles.css">
     <style>
+        rect.bordered {
+            stroke: #E6E6E6;
+            stroke-width: 2px;
+        }
+
+        .graph-node text {
+            pointer-events: none;
+            font: 5px sans-serif;
+        }
+
         .toggle.ios, .toggle-on.ios, .toggle-off.ios {
             border-radius: 20px;
         }
@@ -23,10 +34,7 @@
         }
 
         .block-display {
-            position: relative;
-            overflow-y: scroll;
-            overflow-x: hidden;
-            height: 800px;
+            overflow-y: visible;
         }
 
         .panel-title {
@@ -63,6 +71,22 @@
 
         .link-extension--active {
             stroke-opacity: .6;
+        }
+
+        .d3-tip {
+            line-height: 1;
+            padding: 6px;
+            background: #101010;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        .d3-tip-rect {
+            font-size: small;
+        }
+
+        .d3-tip-value {
+            color: aliceblue !important;
         }
     </style>
 
@@ -117,7 +141,6 @@
 
 </nav>
 <div class="container-fluid">
-
     <div class="row">
         <div class="col-md-12 main" id="content">
         </div>
@@ -159,16 +182,19 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <script src="js/jquery/dist/jquery.min.js"></script>
 <script src="js/jquery-ui/jquery-ui.min.js"></script>
+<script src="js/jquery-ui/resize.js"></script>
 <script src="js/lodash/dist/lodash.min.js"></script>
 <script src="js/bootstrap/dist/js/bootstrap.min.js"></script>
 <script src="js/bootstrap-fileinput/js/fileinput.min.js"></script>
 <script src="js/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
 <script src="js/bootstrap-toggle/js/bootstrap-toggle.min.js"></script>
 <script src="js/d3/d3.min.js"></script>
+<script src="js/d3-tip/index.js"></script>
 <script src="js/babel/browser.min.js"></script>
 <script src="js/datatables.net/js/jquery.dataTables.min.js"></script>
 <script src="js/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
@@ -190,45 +216,78 @@
         createTaperedNetworkGraph: function () {
             var svg = d3.select("#network-edge");
 
-            svg.attr("width",$("div.network-block").width());
+            //svg.attr("width", $("div.network-block").width());
 
-            var width=  svg.attr("width");
-            var height = 522;
-            svg.attr("height", height);
+            var width = $('div.network-block').width();
+            var height = 529;
+
+            svg.attr("viewBox", "0 0 " + width + " " + height);
 
             var simulation = d3.forceSimulation()
-                    .force("link", d3.forceLink().id(function(d) { return d.id; }))
-                    //.force("collide",d3.forceCollide( function(d){return d.module + 8 }).iterations(16) )
-                    .force("charge", d3.forceManyBody())
-                    .force("center", d3.forceCenter(width / 2, height / 2));
+                    .force("link", d3.forceLink().id(function (d) {
+                        return d.id;
+                    }))
+                    .force("center", d3.forceCenter(width / 2, height / 2))
+                    .force("charge", d3.forceManyBody().distanceMax([130]));
 
-            d3.json("network.json", function(error, graph) {
+            d3.json("network.json", function (error, graph) {
                 if (error) throw error;
 
-                var link = svg.append("g")
-                        .attr("class", "tapperd-edge")
+                var bothLinks = _.intersectionWith(_.cloneDeep(graph.links), _.map(_.cloneDeep(graph.links), function (item, idx) {
+                    return {source: item.target, target: item.source};
+                }), _.isEqual);
+                console.log(bothLinks);
+
+                graph.links = _.map(graph.links, function (item, idx) {
+                    //console.log(item);
+                    if (_.find(bothLinks, item)) {
+                        item.both = true;
+                    }
+                    return item;
+                });
+
+                var link = svg
+                        .attr("class", "graph-edge")
                         .selectAll("path")
                         .data(graph.links)
                         .enter().append("path")
                         .style("fill", "darkgreen")
-                        .style("stroke", "black")
-                        .style("stroke-width", 1)
+                        .style("stroke", function (d) {
+                            return d.both ? "#0028FF" : "black";
+                        })
+                        .style("stroke-width", function (d) {
+                            return d.both ? 5 : 1;
+                        })
                         .style("opacity", 0.75);
 
-                var node = svg.append("g")
-                        .attr("class", "graph-node")
-                        .selectAll("circle")
+                var gnodes = svg
+                        .attr("class", "gnodes")
+                        .selectAll("g")
                         .data(graph.nodes)
-                        .enter().append("circle")
-                        .attr("r", 5)
-                        .attr("fill", function(d) { return "black"; })
+                        .enter()
+                        .append("g")
                         .call(d3.drag()
                                 .on("start", dragstarted)
                                 .on("drag", dragged)
                                 .on("end", dragended));
+                ;
 
-                node.append("title")
-                        .text(function(d) { return d.id; });
+                var node = gnodes
+                        .attr("class", "graph-node")
+                        .append("circle")
+                        .attr("r", 4.5).attr("fill", "#333");
+
+                var labels = gnodes.append("text")
+                        .attr("dx", "-10")
+                        .attr("dy", "-10")
+                        .text(function (d) {
+                            return d.name;
+                        });
+
+                var titles = gnodes.append("title")
+                        .text(function (d) {
+                            return d.id;
+                        });
 
                 simulation
                         .nodes(graph.nodes)
@@ -239,24 +298,34 @@
 
                 function ticked() {
                     link
-                            .attr("x1", function(d) { return d.source.x; })
-                            .attr("y1", function(d) { return d.source.y; })
-                            .attr("x2", function(d) { return d.target.x; })
-                            .attr("y2", function(d) { return d.target.y; })
+                            .attr("x1", function (d) {
+                                return d.source.x;
+                            })
+                            .attr("y1", function (d) {
+                                return d.source.y;
+                            })
+                            .attr("x2", function (d) {
+                                return d.target.x;
+                            })
+                            .attr("y2", function (d) {
+                                return d.target.y;
+                            })
                             .attr("d", function (d) {
-                                return comet(d, 5)
+                                //console.log(d)
+                                return d.both ? linkLine(d) : comet(d, 5);
                             })
                             .style("fill", "gold");
 
-                    node
-                            .attr("cx", function(d) { return d.x; })
-                            .attr("cy", function(d) { return d.y; })
+                    gnodes.attr("transform", function (d) {
+                        return "translate(" + d.x + "," + d.y + ")";
+                    });
+
 
                     function comet(d, nodeSize) {
                         var diffX = d.target.y - d.source.y;
                         var diffY = d.target.x - d.source.x;
 
-                        var angle0 = ( Math.atan2( diffY, diffX ) + ( Math.PI / 2 ) );
+                        var angle0 = ( Math.atan2(diffY, diffX) + ( Math.PI / 2 ) );
                         var angle1 = angle0 - ( Math.PI / 2 );
                         var angle2 = angle0 + ( Math.PI / 2 );
 
@@ -266,6 +335,10 @@
                         var y2 = d.target.y - (nodeSize * Math.sin(angle2));
 
                         return "M" + x1 + "," + y1 + "L" + x2 + "," + y2 + " L " + d.source.x + "," + d.source.y + "z";
+                    }
+
+                    function linkLine(d) {
+                        return "M" + d.target.x + " " + d.target.y + " L " + d.source.x + "," + d.source.y + "z";
                     }
                 }
             });
@@ -522,9 +595,9 @@
                     .attr('id', 'mainGradient').attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
 
             //height of each row in the createHeatmap
-            var h = 80;
+            var h = 50;
             //width of each column in the createHeatmap
-            var w = 80;
+            var w = 50;
             //attach a SVG node to the document
             //height and width defined by the row/column lengths
             var width = (w * singlecols.length) + 100;
@@ -536,8 +609,9 @@
             var colTreeWidth = width - 25, colTreeHeight = 80;
             d3.select("#" + blockId).select("div.block-display").html("");
             var mySVG = d3.select("#" + blockId).select("div.block-display")
-                    .append("svg");
-                    //.attr("viewBox", "0 0 900 1100")
+                    .append("svg")
+                    .attr("width", "100%");
+            //.attr("viewBox", "0 0 900 1100")
 
             var heatmapG = mySVG.append('g')
                     .attr("transform", "translate(400, 50)")
@@ -553,7 +627,7 @@
             var treeG = mySVG
                     .append("g")
                     .attr("id", treeId)
-                    .attr("transform", "translate(50, 3540)")
+                    .attr("transform", "translate(50, 2250)")
 
             //.attr("width", treeWidth)
 
@@ -564,6 +638,13 @@
                     .enter().append("g");
 
             // Draw the Heatmap
+            var tip = d3.tip().attr('class', 'd3-tip').html(function (d) {
+                return "<div class='d3-tip-rect'>" +
+                        "<span> SOURCE : " + completecols[d[2]] + "</span><br>" +
+                        "<span> GENE : <span class='d3-tip-value'>" + completerows[d[1]] + "</span></span><br>" +
+                        "<span> VALUE : " + d[0] + "</span>" +
+                        "</div>";
+            });
             heatmapRects = heatmapRow
                     .selectAll(".rect")
                     .data(function (d) {
@@ -578,11 +659,21 @@
                         return (d[1] * h) + 50;
 
                     })
+                    .attr('rx', 5)
+                    .attr('ry', 5)
+                    .attr('class', 'bordered')
                     .style('fill', function (d) {
                         return colorScale(d[0]);
-                    });
-            console.log(heatmapRects.attr('height'))
-            mySVG.attr("viewBox","0 0 900 "+(treeHeight+110));
+                    })
+                    .call(tip)
+                    .on('mouseover', function (e) {
+                        console.log(this, e);
+                        tip.show(e)
+                    })
+                    .on('mouseout', tip.hide);
+
+
+            mySVG.attr("viewBox", "0 0 900 " + (treeHeight + 110));
 
             //label columns (Condition name)
             var columnLabel = heatmapG.selectAll(".colLabel")
@@ -615,7 +706,7 @@
                     .enter().append('svg:text')
                     .attr('x', 30)
                     .attr('y', function (d, i) {
-                        return (i * h) +95
+                        return (i * h) + 80
                     })
                     .attr('class', 'label')
                     .style('text-anchor', 'middle')
@@ -676,8 +767,8 @@
             var g = d3.select("#" + treeId);
             console.log(makeTreeHeight);
             var tree = d3.cluster()
-                    //.size([makeTreeHeight,320])
-                    .nodeSize([80,25])
+            //.size([makeTreeHeight,320])
+                    .nodeSize([50, 25])
                     .separation(separation);
 
             function separation(a, b) {
@@ -857,7 +948,7 @@
         });
     });
     $(window).scroll(function () {
-        $('nav').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
+        //$('nav').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
         //$('.frequency-panel').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
         //$('div.network-panel').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
     });
@@ -914,8 +1005,10 @@
                 $blockEdit.toggle();
             });
             $block.resizable({
-                grid: [1, 10000],
-                containment: "#content"
+                maxHeight: d3.select("#content").attr('height'),
+                maxWidth: d3.select("#content").attr('width'),
+                minHeight: 150,
+                minWidth: 200
             });
             // 화면 갱신
             $('div.main').append($block);

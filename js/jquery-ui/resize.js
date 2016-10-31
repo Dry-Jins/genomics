@@ -1,23 +1,60 @@
-$(function() {
+$.ui.plugin.add('resizable', 'alsoResizeReverse', {
 
-    if($('.container-fluid').innerWidth()>992)
-    {
-        $( ".resizable" ).resizable({ maxWidth: $('.container-fluid').innerWidth()-200 });
+    start: function () {
+        var that = $(this).data('ui-resizable'),
+            o = that.options,
+            _store = function (exp) {
+                $(exp).each(function() {
+                    var el = $(this);
+                    el.data('ui-resizable-alsoresize-reverse', {
+                        width: parseInt(el.width(), 10), height: parseInt(el.height(), 10),
+                        left: parseInt(el.css('left'), 10), top: parseInt(el.css('top'), 10)
+                    });
+                });
+            };
+
+        if (typeof(o.alsoResizeReverse) === 'object' && !o.alsoResizeReverse.parentNode) {
+            if (o.alsoResizeReverse.length) { o.alsoResize = o.alsoResizeReverse[0]; _store(o.alsoResizeReverse); }
+            else { $.each(o.alsoResizeReverse, function(exp) { _store(exp); }); }
+        }else{
+            _store(o.alsoResizeReverse);
+        }
+    },
+
+    resize: function (event, ui) {
+        var that = $(this).data('ui-resizable'),
+            o = that.options,
+            os = that.originalSize,
+            op = that.originalPosition,
+            delta = {
+                height: (that.size.height - os.height) || 0, width: (that.size.width - os.width) || 0,
+                top: (that.position.top - op.top) || 0, left: (that.position.left - op.left) || 0
+            },
+
+            _alsoResizeReverse = function(exp, c) {
+                $(exp).each(function() {
+                    var el = $(this), start = $(this).data('ui-resizable-alsoresize-reverse'), style = {},
+                        css = c && c.length ? c : el.parents(ui.originalElement[0]).length ? ['width', 'height'] : ['width', 'height', 'top', 'left'];
+
+                    $.each(css, function(i, prop) {
+                        var sum = (start[prop]||0) - (delta[prop]||0); // subtracting instead of adding
+                        if (sum && sum >= 0) {
+                            style[prop] = sum || null;
+                        }
+                    });
+
+                    el.css(style);
+                });
+            };
+
+        if (typeof(o.alsoResizeReverse) === 'object' && !o.alsoResizeReverse.nodeType) {
+            $.each(o.alsoResizeReverse, function(exp, c) { _alsoResizeReverse(exp, c); });
+        }else{
+            _alsoResizeReverse(o.alsoResizeReverse);
+        }
+    },
+
+    stop: function(event, ui){
+        $(this).removeData("resizable-alsoresize-reverse");
     }
-
-    $( window ).resize(function() {
-        if($('.container-fluid').innerWidth()<=992){
-            $('.col-xs-12').css('width','100%');
-            $( "#resizable" ).resizable({ disabled: true });
-        }
-        else {
-            if($(".resizable").innerWidth()===$('.container-fluid').innerWidth())
-            {
-                $('.col-xs-12').css('width','');
-            }
-            $( ".resizable" ).resizable({ disabled: false, maxWidth: $('.container-fluid').innerWidth()-200 });
-            $('.resizable-mirror').css('width', Math.floor($('.container-fluid').innerWidth() -  $( "#resizable" ).innerWidth()));
-        }
-    });
-
 });

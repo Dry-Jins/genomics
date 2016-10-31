@@ -15,6 +15,24 @@
     <link href="js/jquery-ui/themes/base/jquery-ui.min.css" rel="stylesheet">
     <link rel="stylesheet" href="//rawgithub.com/Caged/d3-tip/master/examples/example-styles.css">
     <style>
+        #tooltip {
+            position: absolute;
+            height: auto;
+            padding: 10px;
+            background-color: white;
+            -webkit-border-radius: 10px;
+            -moz-border-radius: 10px;
+            border-radius: 10px;
+            -webkit-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            -moz-box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+        }
+
+        #tooltip.hidden {
+            display: none;
+        }
+
         rect.bordered {
             stroke: #E6E6E6;
             stroke-width: 2px;
@@ -31,6 +49,10 @@
 
         .toggle.ios .toggle-handle {
             border-radius: 20px;
+        }
+
+        .block {
+            line-height: 34px;
         }
 
         .block-display {
@@ -92,6 +114,8 @@
 
 </head>
 <body>
+<div id="tooltip">
+</div>
 <nav class="navbar navbar-inverse" role="navigation" style="z-index: 99">
     <div class="navbar-header">
         <button class="navbar-toggle" type="button" data-toggle="collapse"
@@ -614,20 +638,20 @@
             //.attr("viewBox", "0 0 900 1100")
 
             var heatmapG = mySVG.append('g')
-                    .attr("transform", "translate(400, 50)")
-                    .attr("id", heatmapId)
+                    .attr("transform", "translate(410, 50)")
+                    .attr("id", heatmapId);
             //.attr("transform", "translate(500, 0)")
             var colTreeG = mySVG
                     .append("g")
                     .attr("id", colTreeId)
-                    .attr("transform", "translate(430, 0)")
+                    .attr("transform", "translate(580, 0)")
             //.attr("width", colTreeWidth)
             //.attr("height", colTreeHeight)
             //.attr("transform", "translate(-100, 0)")
             var treeG = mySVG
                     .append("g")
                     .attr("id", treeId)
-                    .attr("transform", "translate(50, 2250)")
+                    .attr("transform", "translate(20, 2250)")
 
             //.attr("width", treeWidth)
 
@@ -645,6 +669,7 @@
                         "<span> VALUE : " + d[0] + "</span>" +
                         "</div>";
             });
+
             heatmapRects = heatmapRow
                     .selectAll(".rect")
                     .data(function (d) {
@@ -668,12 +693,35 @@
                     .call(tip)
                     .on('mouseover', function (e) {
                         console.log(this, e);
-                        tip.show(e)
+                        tip.show(e);
+                        $(this).css({
+                            'stroke': '#eee',
+                            'stroke-width': '12px'
+                        });
+
+                        var xPosition = parseFloat(d3.select(this).attr('x')) + w / 2;
+                        var yPosition = parseFloat(d3.select(this).attr('y')) / 2 + h / 2;
+
+                        var zoomTip = d3.select('#tooltip')
+                                .style({
+                                    left: xPosition + 'px',
+                                    top: yPosition + 'px'
+                                });
+                        var svgClone = heatmapG.clone();
+                        zoomTip.append(svgClone);
+                        zoomTip.classed('hidden', false);
+
                     })
-                    .on('mouseout', tip.hide);
+                    .on('mouseout', function (e) {
+                        $(this).css({
+                            'stroke': '#E6E6E6',
+                            'stroke-width': '2px'
+                        });
+                        tip.hide(e);
+                    });
 
 
-            mySVG.attr("viewBox", "0 0 900 " + (treeHeight + 110));
+            mySVG.attr("viewBox", "0 0 700 " + (treeHeight + 110));
 
             //label columns (Condition name)
             var columnLabel = heatmapG.selectAll(".colLabel")
@@ -704,12 +752,12 @@
             var rowLabel = heatmapG.selectAll(".rowLabel")
                     .data(rows)
                     .enter().append('svg:text')
-                    .attr('x', 30)
+                    .attr('x', -15)
                     .attr('y', function (d, i) {
                         return (i * h) + 80
                     })
                     .attr('class', 'label')
-                    .style('text-anchor', 'middle')
+                    .style('text-anchor', 'right')
                     .text(function (d) {
                         return d;
                     });
@@ -881,7 +929,14 @@
                 var path = blockManager.basicUrl + "static/csv/subcoltree.csv"
             }
 
-            var tree = d3.cluster().size([treeWidth, 50]);
+            var tree = d3.cluster()
+                    .nodeSize([50, 25])
+                    .separation(separation);
+
+            function separation(a, b) {
+                return a.parent == b.parent ? 1 : 1;
+            }
+
             var stratify = d3.stratify().parentId(function (d) {
                 return d.id.substring(0, d.id.lastIndexOf("."));
             });
@@ -971,7 +1026,7 @@
             // 블록 생성
             var blockId = this.getBlockId();
             var blockSvgId = blockId + "-svg";
-            var $block = $('<div class="thumbnail col-md-6 block display text-right">' +
+            var $block = $('<div class="thumbnail col-md-3 block display text-right">' +
                     '<a class="pull-left block-title"></a>' +
                     '<a href="#" class="edit-block"><i class="glyphicon glyphicon-cog"></i> </a>' +
                     '<a href="#" class="del-block"> <i class="glyphicon glyphicon-remove"></i></a>' +
@@ -1005,11 +1060,23 @@
                 $blockEdit.toggle();
             });
             $block.resizable({
-                maxHeight: d3.select("#content").attr('height'),
-                maxWidth: d3.select("#content").attr('width'),
-                minHeight: 150,
-                minWidth: 200
+                containment: "#content",
+                handles: 'e',
+                minWidth: 100,
+                resize: function (event, ui) {
+                    var mySvg = $block.find('svg');
+                    var viewBox = mySvg.attr('viewBox');
+                    var originViewBox = '0 0 700 5110';
+                    var replaceViewBox = '390 100 300 5010';
+                    if (ui.size.width < $('#content').width() / 9) {
+                        mySvg.attr('viewBox', replaceViewBox)
+                    }
+                    else {
+                        mySvg.attr('viewBox', originViewBox)
+                    }
+                }
             });
+
             // 화면 갱신
             $('div.main').append($block);
             $block.hide().show('normal');

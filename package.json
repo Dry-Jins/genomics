@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Simple gene viwer based on D3JS",
   "main": "index.html",
-  "dependencies": {},
+  "dependencies": {
+    "d3-selection-multi": "^1.0.0"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

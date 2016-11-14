@@ -14,7 +14,40 @@
     <link href="js/datatables.net-bs/css/dataTables.bootstrap.min.css" rel="stylesheet">
     <link href="js/jquery-ui/themes/base/jquery-ui.min.css" rel="stylesheet">
     <link rel="stylesheet" href="//rawgithub.com/Caged/d3-tip/master/examples/example-styles.css">
+    <link rel="stylesheet" href="stylesheets/select.css">
+    <link rel="stylesheet" href="stylesheets/d3-context-menu.css">
     <style>
+        #content-list {
+            list-style-type: none;
+        }
+
+        .fixed-block {
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        .scrollable {
+            overflow-y: scroll;
+        }
+
+        .canvas-popup {
+            position: absolute;
+            display: none;
+        }
+
+        .popup {
+            position: absolute;
+            left: 0;
+            top: 0;
+            background-color: #fff;
+            border: 1px #ccc solid;
+            border-radius: 6px;
+            box-shadow: #333 2px 2px 4px;
+            padding: 8px;
+            font-family: arial, helvetica, sans-serif;
+            display: block;
+        }
+
         #tooltip {
             position: absolute;
             height: auto;
@@ -55,8 +88,12 @@
             line-height: 34px;
         }
 
+        .block a:link {
+            text-decoration: none;
+        }
+
         .block-display {
-            overflow-y: visible;
+
         }
 
         .panel-title {
@@ -109,6 +146,9 @@
 
         .d3-tip-value {
             color: aliceblue !important;
+        }
+
+        .block-title {
         }
     </style>
 
@@ -167,7 +207,9 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12 main" id="content">
+            <div id="content-list"></div>
         </div>
+        <!--
         <div class="col-md-9 network-panel">
             <div class="panel panel-default ">
                 <div class="panel-heading">
@@ -205,6 +247,7 @@
                 </div>
             </div>
         </div>
+        -->
     </div>
 
 </div>
@@ -218,7 +261,9 @@
 <script src="js/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
 <script src="js/bootstrap-toggle/js/bootstrap-toggle.min.js"></script>
 <script src="js/d3/d3.min.js"></script>
+<script src="js/d3/d3-selection-multi.min.js"></script>
 <script src="js/d3-tip/index.js"></script>
+<script src="js/d3-context-menu/js/d3-context-menu.js"></script>
 <script src="js/babel/browser.min.js"></script>
 <script src="js/datatables.net/js/jquery.dataTables.min.js"></script>
 <script src="js/datatables.net-bs/js/dataTables.bootstrap.min.js"></script>
@@ -237,15 +282,19 @@
 
 
     var visualizer = {
-        createTaperedNetworkGraph: function () {
-            var svg = d3.select("#network-edge");
+        createTaperedNetworkGraph: function (svg) {
+            console.log(svg);
+            if (svg == undefined)
+                svg = d3.select("#network-edge");
 
-            //svg.attr("width", $("div.network-block").width());
-
-            var width = $('div.network-block').width();
+            var width = window.innerWidth / 3;
             var height = 529;
+            //svg.attr("viewBox", "0 0 " + width + " " + height);
+            svg.attr("width", width);
+            svg.attr("height", height);
+            svg.attr('class','popup-svg');
+            //svg = svg.append('g');
 
-            svg.attr("viewBox", "0 0 " + width + " " + height);
 
             var simulation = d3.forceSimulation()
                     .force("link", d3.forceLink().id(function (d) {
@@ -260,7 +309,6 @@
                 var bothLinks = _.intersectionWith(_.cloneDeep(graph.links), _.map(_.cloneDeep(graph.links), function (item, idx) {
                     return {source: item.target, target: item.source};
                 }), _.isEqual);
-                console.log(bothLinks);
 
                 graph.links = _.map(graph.links, function (item, idx) {
                     //console.log(item);
@@ -271,10 +319,10 @@
                 });
 
                 var link = svg
-                        .attr("class", "graph-edge")
                         .selectAll("path")
                         .data(graph.links)
                         .enter().append("path")
+                        .attr("class", "graph-edge")
                         .style("fill", "darkgreen")
                         .style("stroke", function (d) {
                             return d.both ? "#0028FF" : "black";
@@ -285,16 +333,16 @@
                         .style("opacity", 0.75);
 
                 var gnodes = svg
-                        .attr("class", "gnodes")
                         .selectAll("g")
                         .data(graph.nodes)
                         .enter()
                         .append("g")
+                        .attr("class", "gnodes")
                         .call(d3.drag()
                                 .on("start", dragstarted)
                                 .on("drag", dragged)
                                 .on("end", dragended));
-                ;
+
 
                 var node = gnodes
                         .attr("class", "graph-node")
@@ -383,7 +431,6 @@
                 d.fx = null;
                 d.fy = null;
             }
-
         },
         createNetworkGraph: function () {
             var width = $("div.network-block").width();
@@ -639,7 +686,12 @@
 
             var heatmapG = mySVG.append('g')
                     .attr("transform", "translate(410, 50)")
-                    .attr("id", heatmapId);
+                    .attr("id", heatmapId)
+                    .on('mouseover', function (d, i) {
+                        heatmapG.classed('state', true);
+                    }).on('mouseout', function (d, i) {
+                        heatmapG.classed('state', false);
+                    });
             //.attr("transform", "translate(500, 0)")
             var colTreeG = mySVG
                     .append("g")
@@ -691,8 +743,13 @@
                         return colorScale(d[0]);
                     })
                     .call(tip)
+                    .on("click", function (d, i) {
+                        console.log(this);
+                        if (!d3.event.ctrlKey) {
+                            d3.selectAll('rect.selected').classed("selected", false);
+                        }
+                    })
                     .on('mouseover', function (e) {
-                        console.log(this, e);
                         tip.show(e);
                         $(this).css({
                             'stroke': '#eee',
@@ -707,9 +764,9 @@
                                     left: xPosition + 'px',
                                     top: yPosition + 'px'
                                 });
-                        var svgClone = heatmapG.clone();
-                        zoomTip.append(svgClone);
-                        zoomTip.classed('hidden', false);
+                        //var svgClone = heatmapG.clone();
+                        //zoomTip.append(svgClone);
+                        //zoomTip.classed('hidden', false);
 
                     })
                     .on('mouseout', function (e) {
@@ -718,7 +775,141 @@
                             'stroke-width': '2px'
                         });
                         tip.hide(e);
+                        //console.log('mouseout', d3.event);
+                        if (d3.event.relatedTarget != null && d3.event.relatedTarget.tagName == 'HTML') {
+                            // remove selection frame
+                            heatmapG.selectAll("rect.selection").remove();
+
+                            // remove temporary selection marker class
+                            d3.selectAll('g.state.selection').classed("selection", false);
+                        }
+                    }).on("mousedown", function (d, i, data) {
+                        if (!d3.event.ctrlKey) {
+                            d3.selectAll('g.selected').classed("selected", false);
+                        }
+                        else {
+                            var e = d3.event,
+                                    g = this,
+                                    isSelected = d3.select(g).classed("selected");
+                            d3.select(g).classed("selected", !isSelected);
+                            // reappend dragged element as last
+                            // so that its stays on top
+                            g.parentNode.appendChild(g);
+                        }
+                        var p = d3.mouse(this);
+                        if (!d3.event.shiftKey) return;
+                        heatmapG.append("rect")
+                                .attrs({
+                                    rx: 6,
+                                    ry: 6,
+                                    x: p[0],
+                                    y: p[1],
+                                    width: 0,
+                                    height: 0
+                                }).attr('class', 'selection')
+                    })
+                    .on("mousemove", function () {
+                        if (!d3.event.shiftKey) return;
+                        var s = heatmapG.select("rect.selection");
+                        if (!s.empty()) {
+                            var p = d3.mouse(this),
+                                    d = {
+                                        x: parseInt(s.attr("x"), 10),
+                                        y: parseInt(s.attr("y"), 10),
+                                        width: parseInt(s.attr("width"), 10),
+                                        height: parseInt(s.attr("height"), 10)
+                                    },
+                                    move = {
+                                        x: p[0] - d.x,
+                                        y: p[1] - d.y
+                                    };
+                            //console.log(p);
+
+                            if (move.x < 1 || (move.x * 2 < d.width)) {
+                                d.x = p[0];
+                                d.width -= move.x;
+                                if (d.width < 0) d.width -= d.width;
+                            } else {
+                                d.width = move.x;
+                                if (d.width < 0) d.width -= d.width;
+                            }
+
+                            if (move.y < 1 || (move.y * 2 < d.height)) {
+                                d.y = p[1];
+                                d.height -= move.y;
+                                if (d.height < 0) d.height -= d.height;
+                            } else {
+                                d.height = move.y;
+                                if (d.height < 0) d.height -= d.height;
+                            }
+                            s.attrs(d);
+
+                            // deselect all temporary selected state objects
+                            d3.selectAll('g.state.selection.selected').classed("selected", false);
+                            d3.select('g.state').selectAll('rect').nodes().forEach(function (state_data, i) {
+                                var rect = d3.select(state_data);
+                                var x = rect.attr('x');
+                                var y = rect.attr('y');
+                                if (
+                                        !d3.select(state_data).classed("selected") &&
+                                        // inner rect inside selection frame
+                                        x <= d.x + d.width && x >= d.x - w &&
+                                        y <= d.y + d.height && y >= d.y - h
+                                ) {
+                                    d3.select(state_data)
+                                            .classed("selected", true);
+                                }
+                            });
+                        }
+                    })
+                    .on("mouseup", function () {
+                        // remove selection frame
+                        heatmapG.selectAll("rect.selection").remove();
+                        if (d3.event.ctrlKey || d3.event.shiftKey) {
+                            var blockId = d3.select('g.state').attr('id');
+                            var selection = d3.selectAll('rect.selected').data().map(function (d, i, data) {
+                                return {source: completecols[d[2]], gene: completerows[d[1]], value: d[0]}
+                            });
+                            var obj = {id: blockId, selection: selection};
+                            console.log(obj);
+                            alert(JSON.stringify(obj));
+
+                        }
                     });
+
+            var contextMenuShowing = false;
+            heatmapG.on('contextmenu', function (d, i, self) {
+                if (contextMenuShowing) {
+                    d3.event.preventDefault();
+                    d3.select('.popup-svg').selectAll("*").remove();
+                    d3.select('.canvas-popup').classed('popup',false);
+                    contextMenuShowing = false;
+                } else {
+                    if (d3.event.ctrlKey) return;
+                    d3_target = d3.select(d3.event.target);
+                    d3.event.preventDefault();
+                    var $menuSelector = $('#contextMenu');
+                    console.log(this);
+                    var mousePosition = d3.mouse(d3.select('body').node());
+                    $menuSelector.show().css({
+                        left: mousePosition[0] + 10 + 'px',
+                        top: mousePosition[1] + 10 + 'px'
+                    });
+                    $menuSelector.find('a.context-menu-pathway').on('click', function (e) {
+                        if (d3_target.classed("selected")) {
+                            contextMenuShowing = true;
+                            d = d3_target.datum();
+                            // Build the popup
+                            $('.canvas-popup').css({"left": mousePosition[0]+50
+                                    ,"top": mousePosition[1]}).addClass('popup');
+                            var popup = d3.select(".canvas-popup").select("svg").classed('popup-svg',true);
+                            visualizer.createTaperedNetworkGraph(popup);
+                            $menuSelector.hide();
+                        }
+                    });
+
+                }
+            });
 
 
             mySVG.attr("viewBox", "0 0 700 " + (treeHeight + 110));
@@ -768,44 +959,6 @@
                     })
                     .on("mouseout", function () {
                         d3.select(this).style("font-weight", "").style("font-size", "12")
-                    });
-            //expression value label
-            var expLab = d3.select("body")
-                    .append('div')
-                    .style('height', 23)
-                    .style('text-align', 'center')
-                    .style('background', 'FFE53B')
-                    .style('opacity', 0.8)
-                    .style('top', 0)
-                    .style('padding', 10)
-                    .style('left', 40)
-                    .style('display', 'none');
-
-
-            //createHeatmap mouse events
-            heatmapRow
-                    .on('mouseover', function (d, i) {
-                        d3.select(this)
-                                .attr('stroke-width', 1)
-                                .attr('stroke', 'black')
-
-                        output = '<b>' + rows[i] + '</b><br>';
-                        for (var j = 0, count = data[i].length; j < count; j++) {
-                            output += data[i][colSeq[j]][0] + ", ";
-                        }
-
-                        expLab
-                                .style('top', (i * h))
-                                .style('display', 'block')
-                                .html(output.substring(0, output.length - 3));
-                    })
-                    .on('mouseout', function (d, i) {
-                        d3.select(this)
-                                .attr('stroke-width', 0)
-                                .attr('stroke', 'none')
-
-                        expLab
-                                .style('display', 'none')
                     });
 
             visualizer.makeTree(currentCluster, treeId, "tree", treeHeight);
@@ -1001,6 +1154,12 @@
             $('div.bar-table').toggle();
             $('div.bar-graph').toggle();
         });
+        $(function () {
+            $("#content-list").sortable({
+                handle: '.block-title',
+                forceHelperSize: true
+            });
+        });
     });
     $(window).scroll(function () {
         //$('nav').animate({top: $(window).scrollTop() + "px"}, {queue: false, duration: 350});
@@ -1011,103 +1170,317 @@
 <script>
     // 블록 관리
     var blockManager = {
-        basicUrl: "geromics/",
-        blockMap: {},
-        init: function () {
-            this.blockMap = {};
-        },
-        delBlock: function (blockId) {
-            var $block = $('#' + blockId);
-            $block.remove();
-            delete this.blockMap[blockId];
-            return this.blockMap;
-        },
-        addBlock: function () {
-            // 블록 생성
-            var blockId = this.getBlockId();
-            var blockSvgId = blockId + "-svg";
-            var $block = $('<div class="thumbnail col-md-3 block display text-right">' +
-                    '<a class="pull-left block-title"></a>' +
-                    '<a href="#" class="edit-block"><i class="glyphicon glyphicon-cog"></i> </a>' +
-                    '<a href="#" class="del-block"> <i class="glyphicon glyphicon-remove"></i></a>' +
-                    '<div class="caption">' +
-                    '<div class="block-display" style="display: none" ></div>' +
-                    '<div class="block-edit">' +
-                    '<p><input type="text" class="form-control" placeholder="BLOCK NAME..."></p>' +
-                    '<p><label>- Cluster</label><select class="selectpicker" data-width="100%" data-style="btn-primary"> <option>Method 1</option> <option>Method 2</option> <option>Method 3</option> </select> </p>' +
-                    '<p><label>- Data</label><input id="input-folder-1" type="file"class="file"></p>' +
-                    '<p><a class="btn btn-success btn-block btn-block-done">Done</a></p>' +
-                    '</div></div></div>');
-            $block.attr('id', blockId);
-            $block.find('a.del-block').on('click', function (e) {
-                blockManager.delBlock(blockId)
-            });
-            console.log($block.find('svg').get(0));
-            var $blockDisplay = $block.find('div.block-display');
-            var $blockEdit = $block.find('div.block-edit');
-            $block.find('a.btn-block-done').on('click', function (e) {
-                blockManager.selectType(currentClusterType);
-                //currentColor = colorScale;
-                //legend(colorScale);
-                visualizer.createHeatmap(currentData, currentCols, currentRows, blockId, "main");
-                //makeTree(currentCluster, "tree", treeHeight);
-                //makeColTree(currentCluster, "main");
-                $blockDisplay.toggle();
-                $blockEdit.toggle();
-            });
-            $block.find('a.edit-block').on('click', function (e) {
-                $blockDisplay.toggle();
-                $blockEdit.toggle();
-            });
-            $block.resizable({
-                containment: "#content",
-                handles: 'e',
-                minWidth: 100,
-                resize: function (event, ui) {
-                    var mySvg = $block.find('svg');
-                    var viewBox = mySvg.attr('viewBox');
-                    var originViewBox = '0 0 700 5110';
-                    var replaceViewBox = '390 100 300 5010';
-                    if (ui.size.width < $('#content').width() / 9) {
-                        mySvg.attr('viewBox', replaceViewBox)
-                    }
-                    else {
-                        mySvg.attr('viewBox', originViewBox)
+                basicUrl: "geromics/",
+                blockMap: {},
+                init: function () {
+                    this.blockMap = {};
+                },
+                delBlock: function (blockId) {
+                    var $block = $('#' + blockId);
+                    $block.remove();
+                    delete this.blockMap[blockId];
+                    return this.blockMap;
+                },
+                addBlock: function () {
+                    // 블록 생성
+                    var blockId = this.getBlockId();
+                    var blockSvgId = blockId + "-svg";
+                    var $block = $('<div class="col-md-3 thumbnail block display text-right">' +
+                            '<p><a href="#" class="block-title badge" style="float:left" data-toggle="tooltip" title="">' + blockId + ' </a></p>' +
+                            '<p>' +
+                            '<a href="#" class="fix-block"><i class="glyphicon glyphicon-pushpin"></i> </a>' +
+                            '<a href="#" class="toggle-block"><i class="glyphicon glyphicon-resize-horizontal"></i> </a>' +
+                            '<a href="#" class="edit-block"><i class="glyphicon glyphicon-cog"></i> </a>' +
+                            '<a href="#" class="del-block"> <i class="glyphicon glyphicon-remove"></i></a></p>' +
+                            '<div class="caption">' +
+                            '<div class="block-display" style="display: none" ></div>' +
+                            '<div class="block-edit">' +
+                            '<p><input type="text" class="form-control" placeholder="BLOCK NAME..."></p>' +
+                            '<p><label>- Cluster</label><select class="selectpicker" data-width="100%" data-style="btn-primary">' +
+                            '<option>Method 1</option> <option>Method 2</option> <option>Method 3</option> </select> </p>' +
+                            '<p><label>- Data</label><input id="input-folder-1" type="file"class="file"></p>' +
+                            '<p><label>- Note</label><textarea class="form-control comment" rows="5" placeholder="Note..."></textarea></p>' +
+                            '<p><a class="btn btn-success btn-block btn-block-done">Done</a></p>' +
+                            '</div></div></div>');
+                    $block.attr('id', blockId);
+                    $block.find('a.del-block').on('click', function (e) {
+                        blockManager.delBlock(blockId)
+                    });
+                    $block.find('a.fix-block').on('click', function (e) {
+                        var $caption = $block.find('div.caption');
+                        console.log($caption);
+                        if ($caption.hasClass('fixed-block')) {
+                            $caption.removeClass('fixed-block');
+                            $caption.removeAttr('style');
+                        }
+                        else {
+                            $caption.addClass('fixed-block');
+                            $caption.css('height', window.innerHeight - 150 + 'px');
+                        }
+                    });
+                    console.log($block.find('svg').get(0));
+
+                    // Menu set
+                    var $blockDisplay = $block.find('div.block-display');
+                    var $blockEdit = $block.find('div.block-edit');
+                    var $blockTitle = $block.find('.block-title');
+                    var $blockToggle = $block.find('.toggle-block');
+
+                    $block.find('a.fix-block').on('click', function (e) {
+                        var blockHeight = $block.height();
+                        console.log(blockHeight);
+                    });
+                    $block.find('a.btn-block-done').on('click', function (e) {
+                        blockManager.selectType(currentClusterType);
+                        //currentColor = colorScale;
+                        //legend(colorScale);
+                        visualizer.createHeatmap(currentData, currentCols, currentRows, blockId, "main");
+                        //makeTree(currentCluster, "tree", treeHeight);
+                        //makeColTree(currentCluster, "main");
+                        var comment = $block.find('textarea').val();
+                        $blockTitle.attr('title', comment);
+                        $blockDisplay.toggle();
+                        $blockEdit.toggle();
+                    });
+                    $block.find('a.edit-block').on('click', function (e) {
+                        $blockDisplay.toggle();
+                        $blockEdit.toggle();
+                    });
+
+                    $blockToggle.on('click', function (e) {
+                                var mySvg = $block.find('svg');
+                                var viewBox = mySvg.attr('viewBox');
+                                var originViewBox = '0 0 700 5110';
+                                var replaceViewBox = '390 100 300 5010';
+                                if ($block.hasClass('only-heatmap')) {
+                                    mySvg.attr('viewBox', originViewBox);
+                                    $block.toggleClass('only-heatmap');
+                                }
+                                else {
+                                    mySvg.attr('viewBox', replaceViewBox);
+                                    $block.toggleClass('only-heatmap');
+                                }
+
+                            }
+                    )
+                    ;
+
+                    $block.resizable({
+                        containment: "#content",
+                        handles: 'e',
+                        minWidth: 150,
+                        resize: function (event, ui) {
+                            /*
+                             var mySvg = $block.find('svg');
+                             var viewBox = mySvg.attr('viewBox');
+                             var originViewBox = '0 0 700 5110';
+                             var replaceViewBox = '390 100 300 5010';
+                             if (ui.size.width < $('#content').width() / 8) {
+                             mySvg.attr('viewBox', replaceViewBox)
+                             }
+                             else {
+                             mySvg.attr('viewBox', originViewBox)
+                             }
+                             */
+                        }
+                    });
+
+
+                    // 화면 갱신
+                    $('#content-list').append($block);
+                    $block.hide().show('normal');
+                    $('.selectpicker').selectpicker('refresh');
+                    $("input.file").fileinput();
+                    this.blockMap[blockId] = $block;
+
+                    return $block;
+                },
+                getBlockId: function () {
+                    // 고유 ID 부여
+                    var d = new Date();
+                    var t = d.getTime() + "";
+                    return 'BLOCK-' + t.slice(-4);
+                }
+                ,
+                selectType: function (clusterType) {
+                    if (clusterType == "single") {
+                        currentData = singledata, currentCols = singlecols, currentRows = singlerows, currentCluster = clusterType;
+                    } else if (clusterType == "complete") {
+                        currentData = completedata, currentCols = completecols, currentRows = completerows, currentCluster = clusterType;
+                    } else if (clusterType == "average") {
+                        currentData = averagedata, currentCols = averagecols, currentRows = averagerows, currentCluster = clusterType;
+                    } else if (clusterType == "weighted") {
+                        currentData = weighteddata, currentCols = weightedcols, currentRows = weightedrows, currentCluster = clusterType;
+                    } else if (clusterType == "centroid") {
+                        currentData = centroiddata, currentCols = centroidcols, currentRows = centroidrows, currentCluster = clusterType;
+                    } else if (clusterType == "median") {
+                        currentData = mediandata, currentCols = mediancols, currentRows = medianrows, currentCluster = clusterType;
+                    } else if (clusterType == "ward") {
+                        currentData = warddata, currentCols = wardcols, currentRows = wardrows, currentCluster = clusterType;
                     }
                 }
-            });
-
-            // 화면 갱신
-            $('div.main').append($block);
-            $block.hide().show('normal');
-            $('.selectpicker').selectpicker('refresh');
-            $("input.file").fileinput();
-            this.blockMap[blockId] = $block;
-            return $block;
-        },
-        getBlockId: function () {
-            // 고유 ID 부여
-            var d = new Date();
-            return 'block-' + d.getTime();
-        },
-        selectType: function (clusterType) {
-            if (clusterType == "single") {
-                currentData = singledata, currentCols = singlecols, currentRows = singlerows, currentCluster = clusterType;
-            } else if (clusterType == "complete") {
-                currentData = completedata, currentCols = completecols, currentRows = completerows, currentCluster = clusterType;
-            } else if (clusterType == "average") {
-                currentData = averagedata, currentCols = averagecols, currentRows = averagerows, currentCluster = clusterType;
-            } else if (clusterType == "weighted") {
-                currentData = weighteddata, currentCols = weightedcols, currentRows = weightedrows, currentCluster = clusterType;
-            } else if (clusterType == "centroid") {
-                currentData = centroiddata, currentCols = centroidcols, currentRows = centroidrows, currentCluster = clusterType;
-            } else if (clusterType == "median") {
-                currentData = mediandata, currentCols = mediancols, currentRows = medianrows, currentCluster = clusterType;
-            } else if (clusterType == "ward") {
-                currentData = warddata, currentCols = wardcols, currentRows = wardrows, currentCluster = clusterType;
             }
-        }
-    };
+            ;
+
+    function testdrag() {
+        var radius = 40;
+
+        var states = [
+            {x: 43, y: 67, label: "first"},
+            {x: 340, y: 150, label: "second"},
+            {x: 200, y: 250, label: "third"},
+            {x: 300, y: 320, label: "fourth"},
+            {x: 50, y: 250, label: "fifth"},
+            {x: 90, y: 170, label: "last"}
+        ];
+
+        var svg = d3.select("body")
+                .append("svg")
+                //.attr("viewBox", "0 0 " + 1000 + " " + 1000 )
+                //.attr("preserveAspectRatio", "xMinYMin")
+                .attr("width", "960px")
+                .attr("height", "500px");
+        console.log(svg);
+
+        var gState = svg.selectAll("g").data(states).enter().append("g")
+                .attr('class', 'state')
+                .attr("transform", function (d) {
+                            return "translate(" + [d.x, d.y] + ")";
+                        }
+                );
+
+        console.log(gState);
+
+        gState.append("circle").attr(
+                'r', radius + 4).attr('class', 'outer');
+        gState.append("circle").attr(
+                'r', radius).attr('class', 'inner').on("click", function (d, i) {
+
+            var e = d3.event,
+                    g = this.parentNode,
+                    isSelected = d3.select(g).classed("selected");
+
+            if (!e.ctrlKey) {
+                d3.selectAll('g.selected').classed("selected", false);
+            }
+            d3.select(g).classed("selected", !isSelected);
+            // reappend dragged element as last
+            // so that its stays on top
+            g.parentNode.appendChild(g);
+        }).on("mouseover", function () {
+            d3.select(this).style("fill", "aliceblue");
+        }).on("mouseout", function () {
+            d3.select(this).style("fill", "white");
+        });
+
+
+        gState.append("text")
+                .attr('text-anchor', 'middle'
+                ).attr('y', 4)
+                .text(function (d) {
+                    return d.label;
+                });
+
+
+        gState.append("title")
+                .text(function (d) {
+                    return d.label;
+                });
+
+        svg
+                .on("mousedown", function () {
+                    if (!d3.event.ctrlKey) {
+                        d3.selectAll('g.selected').classed("selected", false);
+                    }
+
+                    var p = d3.mouse(this);
+                    if (!d3.event.shiftKey) return;
+                    svg.append("rect")
+                            .attrs({
+                                rx: 6,
+                                ry: 6,
+                                'class': "selection",
+                                x: p[0],
+                                y: p[1],
+                                width: 0,
+                                height: 0
+                            })
+                })
+                .on("mousemove", function () {
+                    if (!d3.event.shiftKey) return;
+                    var s = svg.select("rect.selection");
+                    if (!s.empty()) {
+                        var p = d3.mouse(this),
+                                d = {
+                                    x: parseInt(s.attr("x"), 10),
+                                    y: parseInt(s.attr("y"), 10),
+                                    width: parseInt(s.attr("width"), 10),
+                                    height: parseInt(s.attr("height"), 10)
+                                },
+                                move = {
+                                    x: p[0] - d.x,
+                                    y: p[1] - d.y
+                                };
+                        //console.log(p);
+
+                        if (move.x < 1 || (move.x * 2 < d.width)) {
+                            d.x = p[0];
+                            d.width -= move.x;
+                        } else {
+                            d.width = move.x;
+                        }
+
+                        if (move.y < 1 || (move.y * 2 < d.height)) {
+                            d.y = p[1];
+                            d.height -= move.y;
+                        } else {
+                            d.height = move.y;
+                        }
+
+                        s.attrs(d);
+
+                        // deselect all temporary selected state objects
+                        d3.selectAll('g.state.selection.selected').classed("selected", false);
+
+                        d3.selectAll('g.state >circle.inner').each(function (state_data, i) {
+                            if (
+                                    !d3.select(this).classed("selected") &&
+                                    // inner circle inside selection frame
+                                    state_data.x - radius >= d.x && state_data.x + radius <= d.x + d.width &&
+                                    state_data.y - radius >= d.y && state_data.y + radius <= d.y + d.height
+                            ) {
+                                d3.select(this.parentNode)
+                                        .classed("selection", true)
+                                        .classed("selected", true);
+                            }
+                        });
+                    }
+                })
+                .on("mouseup", function () {
+                    // remove selection frame
+                    svg.selectAll("rect.selection").remove();
+
+                    // remove temporary selection marker class
+                    d3.selectAll('g.state.selection').classed("selection", false);
+                })
+                .on("mouseout", function () {
+                    //console.log('mouseout', d3.event);
+                    if (d3.event.relatedTarget != null && d3.event.relatedTarget.tagName == 'HTML') {
+                        // remove selection frame
+                        svg.selectAll("rect.selection").remove();
+
+                        // remove temporary selection marker class
+                        d3.selectAll('g.state.selection').classed("selection", false);
+                    }
+                });
+    }
 </script>
+<div class="canvas-popup"><svg></svg></div>
+<ul id="contextMenu" class="dropdown-menu" role="menu" style="display:none;position: absolute">
+    <li><a tabindex="-1" class="context-menu-pathway">Pathway</a></li>
+    <li><a tabindex="-1">TEST</a></li>
+    <li class="divider"></li>
+    <li><a tabindex="-1" href="#">Separated link</a></li>
+</ul>
 </body>
 </html>

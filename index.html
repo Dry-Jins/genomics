@@ -17,6 +17,9 @@
     <link rel="stylesheet" href="stylesheets/select.css">
     <link rel="stylesheet" href="stylesheets/d3-context-menu.css">
     <style>
+        .thumbnail .caption{
+            padding: 1px;
+        }
         #content-list {
             list-style-type: none;
         }
@@ -1186,12 +1189,12 @@
                     var blockId = this.getBlockId();
                     var blockSvgId = blockId + "-svg";
                     var $block = $('<div class="col-md-3 thumbnail block display text-right">' +
-                            '<p><a href="#" class="block-title badge" style="float:left" data-toggle="tooltip" title="">' + blockId + ' </a></p>' +
+                            '<div class="block-menu"><p><a href="#" class="block-title badge" style="float:left" data-toggle="tooltip" title="">' + blockId + ' </a></p>' +
                             '<p>' +
                             '<a href="#" class="fix-block"><i class="glyphicon glyphicon-pushpin"></i> </a>' +
                             '<a href="#" class="toggle-block"><i class="glyphicon glyphicon-resize-horizontal"></i> </a>' +
                             '<a href="#" class="edit-block"><i class="glyphicon glyphicon-cog"></i> </a>' +
-                            '<a href="#" class="del-block"> <i class="glyphicon glyphicon-remove"></i></a></p>' +
+                            '<a href="#" class="del-block"> <i class="glyphicon glyphicon-remove"></i></a></p></div>' +
                             '<div class="caption">' +
                             '<div class="block-display" style="display: none" ></div>' +
                             '<div class="block-edit">' +
@@ -1268,20 +1271,21 @@
                     $block.resizable({
                         containment: "#content",
                         handles: 'e',
-                        minWidth: 150,
+                        minWidth: 40,
                         resize: function (event, ui) {
-                            /*
-                             var mySvg = $block.find('svg');
-                             var viewBox = mySvg.attr('viewBox');
-                             var originViewBox = '0 0 700 5110';
-                             var replaceViewBox = '390 100 300 5010';
-                             if (ui.size.width < $('#content').width() / 8) {
-                             mySvg.attr('viewBox', replaceViewBox)
+                             if (ui.size.width < 90) {
+                                 $block.find('.label').css({'display':'none'});
+                                 $block.find('.block-menu').css({'display':'none'});
+                                 var replaceViewBox = '470 100 240 5010';
+                                 $block.find('svg').attr('viewBox',replaceViewBox);
                              }
-                             else {
-                             mySvg.attr('viewBox', originViewBox)
+                             else{
+                                 $block.find('.label').css({'display':'block'})
+                                 $block.find('.block-menu').css({'display':'block'});
+                                 var replaceViewBox = '390 100 300 5010';
+                                 $block.find('svg').attr('viewBox',replaceViewBox);
                              }
-                             */
+
                         }
                     });
 
